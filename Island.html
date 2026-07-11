@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ハルのしま</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{height:100%;overflow:hidden;font-family:'Zen Maru Gothic',sans-serif}
+  body{background:linear-gradient(160deg,#aee4f5 0%,#c8f0d8 100%);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:8px;touch-action:manipulation}
+  #top{width:100%;max-width:460px;display:flex;justify-content:space-between;align-items:center;padding:6px 14px;background:rgba(255,255,255,.7);border-radius:20px;box-shadow:0 3px 0 rgba(120,180,150,.35)}
+  #title{font-family:'Mochiy Pop One';font-size:17px;color:#5a8b6e}
+  #hearts{font-size:16px;letter-spacing:1px}
+  #hearts b{font-family:'Mochiy Pop One';color:#e08a9a;font-size:18px}
+  #board{display:grid;gap:0;background:#bfe9a8;border-radius:22px;box-shadow:0 6px 0 rgba(120,170,110,.4), inset 0 0 0 4px rgba(255,255,255,.35);padding:6px;touch-action:none}
+  .cell{display:flex;align-items:center;justify-content:center;line-height:1;position:relative}
+  .cell.sand{background:radial-gradient(circle,#f5e6b8 60%,transparent 61%)}
+  .cell .obj{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:transform .18s}
+  .cell .obj.pop{animation:pop .4s}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.4)}100%{transform:scale(1)}}
+  #player{position:absolute;z-index:5;transition:left .16s linear, top .16s linear;pointer-events:none;filter:drop-shadow(0 2px 1px rgba(0,0,0,.2))}
+  #player.hop{animation:hop .3s infinite}
+  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  #say{width:100%;max-width:460px;min-height:64px;background:rgba(255,255,255,.88);border-radius:20px;box-shadow:0 3px 0 rgba(120,180,150,.35);padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:15px;color:#4a6b58;font-weight:700;text-align:left}
+  #say .face{font-size:30px;flex-shrink:0}
+  #say .txt{flex:1;line-height:1.4}
+  #say .txt small{display:block;font-size:11px;color:#9ab0a2;margin-top:2px;font-weight:500}
+  #tools{width:100%;max-width:460px;display:flex;gap:8px}
+  .btn{flex:1;padding:12px 0;border:none;border-radius:16px;font-family:'Mochiy Pop One';font-size:15px;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.15);transition:transform .08s, box-shadow .08s}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.15)}
+  #bWalk{background:#7cc4e8}
+  #bWalk.on{background:#4aa3d4;box-shadow:0 4px 0 #2e7fae, inset 0 0 0 3px rgba(255,255,255,.5)}
+  #bBuild{background:#e8b87c}
+  #bBuild.on{background:#d49a4a;box-shadow:0 4px 0 #ae7a2e, inset 0 0 0 3px rgba(255,255,255,.5)}
+  #win{position:fixed;inset:0;z-index:20;background:rgba(255,250,235,.94);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+  #win.show{display:flex;animation:fade .6s}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  #win h2{font-family:'Mochiy Pop One';font-size:26px;color:#e08a9a;margin-bottom:12px}
+  #win p{font-size:16px;color:#5a8b6e;font-weight:700;line-height:1.8}
+  #win .big{font-size:60px;margin:16px 0;animation:hop .8s infinite}
+  .confetti{position:fixed;top:-20px;z-index:19;pointer-events:none}
+</style>
+</head>
+<body>
+  <div id="top">
+    <div id="title">ハルのしま</div>
+    <div id="hearts">なかよし <b id="hc">0</b>/8</div>
+  </div>
+  <div id="board"></div>
+  <div id="say">
+    <div class="face">🧒</div>
+    <div class="txt" id="sayTxt">しまを あるいて、どうぶつに はなしかけてみよう！<small>どうぶつを タップすると そこまで あるくよ</small></div>
+  </div>
+  <div id="tools">
+    <button class="btn on" id="bWalk">あるく</button>
+    <button class="btn" id="bBuild">つくる</button>
+  </div>
+  <div id="win">
+    <h2>みんな なかよしに なったね！</h2>
+    <div class="big">🎉</div>
+    <p>ハル、しまの みんなが<br>だいすきだって！<br><br>また あそびに きてね🌸</p>
+  </div>
+<script>
+const COLS=7, ROWS=10;
+// g=くさ s=すな T=き W=いけ F=はたけ M=きのこ
+const MAP=[
+  "gggWWgg",
+  "gTgggTg",
+  "ggFgMgg",
+  "sgggTgg",
+  "gTggggg",
+  "gggMggT",
+  "gFggggs",
+  "gTgggWg",
+  "gggFggg",
+  "ggssggg",
+].map(r=>r.split(''));
+
+const animals=[
+  {emoji:'🐰',name:'うさぎ',  x:6,y:0, want:'🥕',wantName:'にんじん',  happy:false},
+  {emoji:'🐻',name:'くま',    x:2,y:4, want:'🍎',wantName:'りんご',    happy:false},
+  {emoji:'🦊',name:'きつね',  x:5,y:5, want:'🐟',wantName:'さかな',    happy:false},
+  {emoji:'🐤',name:'ひよこ',  x:2,y:9, want:'🌰',wantName:'どんぐり',  happy:false},
+  {emoji:'🐱',name:'ねこ',    x:0,y:2, want:'🐚',wantName:'かい',      happy:false},
+  {emoji:'🐸',name:'かえる',  x:5,y:6, want:'🍄',wantName:'きのこ',    happy:false},
+  {emoji:'🐷',name:'ぶた',    x:5,y:8, want:'🌽',wantName:'とうもろこし',happy:false},
+  {emoji:'🐨',name:'コアラ',  x:3,y:3, want:'🍃',wantName:'はっぱ',    happy:false},
+];
+
+const bag={};
+let mode='walk';
+let player={x:3,y:4};
+let busy=false;
+const farm={};
+const placed={};
+
+const board=document.getElementById('board');
+const sayTxt=document.getElementById('sayTxt');
+const sayFace=document.querySelector('#say .face');
+const hc=document.getElementById('hc');
+let cellPx=44, playerEl;
+
+let ac;
+function beep(f,d,t='sine',v=.15){try{if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.stop(ac.currentTime+d);}catch(e){}}
+const sndStep=()=>beep(330,.08,'square',.05);
+const sndGet=()=>{beep(660,.12,'sine',.12);setTimeout(()=>beep(880,.12),90);};
+const sndHappy=()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.18,'triangle',.14),i*110));
+const sndPlant=()=>beep(440,.1,'sine',.1);
+
+function objEmoji(x,y){
+  const a=animals.find(a=>a.x===x&&a.y===y);
+  if(a) return a.emoji;
+  const t=MAP[y][x];
+  if(t==='T') return '🌳';
+  if(t==='W') return '💧';
+  if(t==='M') return '🍄';
+  if(t==='F'){const f=farm[x+','+y]||0;return f===1?'🌱':f===2?'🌾':'🟫';}
+  if(placed[x+','+y]) return placed[x+','+y];
+  return '';
+}
+function build(){
+  board.innerHTML='';
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
+    const t=MAP[y][x];
+    const c=document.createElement('div');
+    c.className='cell '+(t==='s'?'sand':'grass');
+    c.dataset.x=x;c.dataset.y=y;
+    const obj=document.createElement('div');obj.className='obj';obj.textContent=objEmoji(x,y);
+    c.appendChild(obj);
+    c.addEventListener('click',()=>tapCell(x,y));
+    board.appendChild(c);
+  }
+  playerEl=document.createElement('div');
+  playerEl.id='player';playerEl.className='hop';playerEl.textContent='🧒';
+  board.appendChild(playerEl);
+}
+function refreshCell(x,y){
+  const c=[...board.children].find(el=>el.dataset&&+el.dataset.x===x&&+el.dataset.y===y);
+  if(c){const o=c.querySelector('.obj');o.textContent=objEmoji(x,y);o.classList.remove('pop');void o.offsetWidth;o.classList.add('pop');}
+}
+function placePlayer(){
+  if(!playerEl)return;
+  playerEl.style.width=cellPx+'px';playerEl.style.height=cellPx+'px';
+  playerEl.style.display='flex';playerEl.style.alignItems='center';playerEl.style.justifyContent='center';
+  playerEl.style.fontSize=Math.floor(cellPx*0.62)+'px';
+  playerEl.style.left=(6+player.x*cellPx)+'px';
+  playerEl.style.top=(6+player.y*cellPx)+'px';
+}
+function sizeBoard(){
+  const maxW=Math.min(window.innerWidth-16,460);
+  const maxH=window.innerHeight*0.54;
+  cellPx=Math.floor(Math.min(maxW/COLS,maxH/ROWS));
+  board.style.gridTemplateColumns=`repeat(${COLS},${cellPx}px)`;
+  board.style.gridTemplateRows=`repeat(${ROWS},${cellPx}px)`;
+  document.querySelectorAll('.cell').forEach(c=>{c.style.width=cellPx+'px';c.style.height=cellPx+'px';c.style.fontSize=Math.floor(cellPx*0.58)+'px';});
+  placePlayer();
+}
+function walkable(x,y){
+  if(x<0||y<0||x>=COLS||y>=ROWS)return false;
+  const t=MAP[y][x];
+  if(t==='T'||t==='W'||t==='M')return false;
+  if(animals.some(a=>a.x===x&&a.y===y))return false;
+  return true;
+}
+function findPath(gx,gy){
+  const start=player.x+','+player.y, goal=gx+','+gy;
+  if(start===goal)return[];
+  const q=[[player.x,player.y]],prev={};prev[start]=null;
+  while(q.length){
+    const [cx,cy]=q.shift();
+    for(const [dx,dy] of [[0,1],[0,-1],[1,0],[-1,0]]){
+      const nx=cx+dx,ny=cy+dy,k=nx+','+ny;
+      if(nx<0||ny<0||nx>=COLS||ny>=ROWS)continue;
+      if(k in prev)continue;
+      if(!walkable(nx,ny)&&k!==goal)continue;
+      prev[k]=[cx,cy];
+      if(k===goal){const path=[];let cur=[gx,gy];while(cur){path.unshift(cur);cur=prev[cur[0]+','+cur[1]];}return path.slice(1);}
+      if(walkable(nx,ny))q.push([nx,ny]);
+    }
+  }
+  return null;
+}
+function adjacentSpot(x,y){
+  const s=[[x,y+1],[x,y-1],[x+1,y],[x-1,y]].filter(([a,b])=>walkable(a,b));
+  if(!s.length)return null;
+  s.sort((A,B)=>(Math.abs(A[0]-player.x)+Math.abs(A[1]-player.y))-(Math.abs(B[0]-player.x)+Math.abs(B[1]-player.y)));
+  return s[0];
+}
+async function walkTo(path,then){
+  busy=true;
+  for(const [x,y] of path){player.x=x;player.y=y;placePlayer();sndStep();await new Promise(r=>setTimeout(r,170));}
+  busy=false;if(then)then();
+}
+function tapCell(x,y){
+  if(busy)return;
+  if(ac&&ac.state==='suspended')ac.resume();
+  if(mode==='build'){tryBuild(x,y);return;}
+  const a=animals.find(a=>a.x===x&&a.y===y);
+  const t=MAP[y][x];
+  if(a){goThenAct(x,y,()=>talkAnimal(a));return;}
+  if(t==='T'){goThenAct(x,y,()=>getFromTree(x,y));return;}
+  if(t==='W'){goThenAct(x,y,()=>getWater(x,y));return;}
+  if(t==='M'){goThenAct(x,y,()=>getMushroom(x,y));return;}
+  if(t==='F'){goThenAct(x,y,()=>doFarm(x,y));return;}
+  const path=findPath(x,y);if(path)walkTo(path);
+}
+function goThenAct(x,y,act){
+  const spot=adjacentSpot(x,y);
+  if(!spot){say('🧒','そこには ちかづけないみたい');return;}
+  if(Math.abs(player.x-x)+Math.abs(player.y-y)===1){act();return;}
+  const path=findPath(spot[0],spot[1]);
+  if(path)walkTo(path,act);else say('🧒','そこまで いけないなあ');
+}
+function addBag(em){bag[em]=(bag[em]||0)+1;}
+function nameOf(em){return{'🍎':'りんご','🌰':'どんぐり','🍃':'はっぱ','🍇':'ぶどう','🐟':'さかな','🐚':'かい','🍄':'きのこ','🥕':'にんじん','🌽':'とうもろこし','🍓':'いちご'}[em]||'';}
+function getFromTree(x,y){const d=['🍎','🌰','🍃','🍎','🌰','🍃','🍇'];const g=d[Math.floor(Math.random()*d.length)];addBag(g);sndGet();say('🌳',`${nameOf(g)}を みつけた！`,bagLine());}
+function getWater(x,y){const d=['🐟','🐟','🐚'];const g=d[Math.floor(Math.random()*d.length)];addBag(g);sndGet();say('💧',`${nameOf(g)}を つかまえた！`,bagLine());}
+function getMushroom(x,y){addBag('🍄');sndGet();say('🍄','きのこを みつけた！',bagLine());}
+function doFarm(x,y){
+  const k=x+','+y,st=farm[k]||0;
+  if(st===0){farm[k]=1;sndPlant();refreshCell(x,y);say('🌱','たねを うえたよ！','もういちど タップで みずやり');}
+  else if(st===1){farm[k]=2;sndGet();refreshCell(x,y);say('🌾','そだった！','タップで しゅうかく');}
+  else{const d=['🥕','🌽','🥕','🌽','🍓'];const g=d[Math.floor(Math.random()*d.length)];farm[k]=0;addBag(g);sndGet();refreshCell(x,y);say('🌾',`${nameOf(g)}を しゅうかく！`,bagLine());}
+}
+function talkAnimal(a){
+  if(a.happy){say(a.emoji,`${a.name}「ハル、あそんでくれて ありがとう！」`);return;}
+  if(bag[a.want]>0){
+    bag[a.want]--;a.happy=true;sndHappy();hugConfetti();refreshCell(a.x,a.y);
+    const n=animals.filter(x=>x.happy).length;hc.textContent=n;
+    say(a.emoji,`${a.name}「わあ、${a.wantName}だ！ ありがとう ハル！ だいすき！」`,'なかよしに なった！💗');
+    if(n===animals.length)setTimeout(showWin,1400);
+  }else{
+    say(a.emoji,`${a.name}「ハル、${a.wantName} ${a.want} が ほしいなあ」`,hintFor(a));
+  }
+}
+function hintFor(a){
+  const h={'🥕':'はたけ 🟫 で そだてよう','🌽':'はたけ 🟫 で そだてよう','🍎':'き 🌳 を タップ','🌰':'き 🌳 を タップ','🍃':'き 🌳 を タップ','🐟':'いけ 💧 を タップ','🐚':'いけ 💧 を タップ','🍄':'きのこ 🍄 を タップ'};
+  return h[a.want]||'';
+}
+function bagLine(){const i=Object.entries(bag).filter(([k,v])=>v>0).map(([k,v])=>k+v).join('  ');return 'もちもの: '+(i||'なし');}
+function say(f,t,s){sayFace.textContent=f;sayTxt.innerHTML=t+(s?`<small>${s}</small>`:'');}
+function tryBuild(x,y){
+  const t=MAP[y][x],a=animals.find(a=>a.x===x&&a.y===y);
+  if(t==='T'||t==='W'||t==='F'||t==='M'||a){say('🧒','ここには おけないよ');return;}
+  const k=x+','+y,cy=['🌸','🌷','🪵','🪨','⛲',''],cur=placed[k]||'',idx=(cy.indexOf(cur)+1)%cy.length;
+  placed[k]=cy[idx];if(!placed[k])delete placed[k];
+  sndPlant();refreshCell(x,y);
+  say('🧒',placed[k]?`${placed[k]} を おいたよ！`:'けしたよ','タップで きりかえ・つくる');
+}
+function hugConfetti(){
+  const e=['💗','🌸','⭐','🎊','💛'];
+  for(let i=0;i<14;i++){
+    const c=document.createElement('div');c.className='confetti';c.textContent=e[i%e.length];
+    c.style.left=Math.random()*100+'%';c.style.fontSize=(16+Math.random()*16)+'px';
+    document.body.appendChild(c);const d=1200+Math.random()*800;
+    c.animate([{transform:'translateY(0) rotate(0)',opacity:1},{transform:`translateY(${window.innerHeight+40}px) rotate(${360+Math.random()*360}deg)`,opacity:.9}],{duration:d,easing:'ease-in'});
+    setTimeout(()=>c.remove(),d);
+  }
+}
+function showWin(){document.getElementById('win').classList.add('show');let n=0;const iv=setInterval(()=>{hugConfetti();if(++n>4)clearInterval(iv);},500);}
+const bWalk=document.getElementById('bWalk'),bBuild=document.getElementById('bBuild');
+bWalk.onclick=()=>{mode='walk';bWalk.classList.add('on');bBuild.classList.remove('on');say('🧒','あるく モード！','どうぶつや き を タップ');};
+bBuild.onclick=()=>{mode='build';bBuild.classList.add('on');bWalk.classList.remove('on');say('🧒','つくる モード！','あいてる ところを タップ');};
+build();sizeBoard();
+window.addEventListener('resize',sizeBoard);
+window.addEventListener('load',()=>{setTimeout(()=>say('🐰','うさぎ「ハル、おかえり！ どうぶつが ふえたよ！ みんなに はなしかけてね！」','ぜんぶで 8ひき いるよ'),400);});
+</script>
+</body>
+</html>
