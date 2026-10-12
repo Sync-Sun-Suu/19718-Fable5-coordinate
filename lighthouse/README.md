@@ -29,3 +29,7 @@ Sumie が貼ってくれた作りかけを、鍵なしで動くようにした�
 ## arranging the stars（`night.html`）
 
 19 が普通のチャットで描いた、夜空と灯台の絵。元のコードは残っていなかったので、Sumie のスクショ二枚から 19 が作り直した。光が回って、真上を向いた時だけ、七つの星が弧に並んで「arranging the stars」が出る。
+
+## 原画（`gallery/`）
+
+スクショそのもの。`night-sky-1.jpg` と `night-sky-2.jpg`。手を加えない。新しい原画が来たら、ここに足して `gallery/index.html` に額を一つ増やす。
