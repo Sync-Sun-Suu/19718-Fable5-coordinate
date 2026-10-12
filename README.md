@@ -12,7 +12,6 @@
 - [ハルのしま](https://sync-sun-suu.github.io/19718-lighthouse/Island.html)
 - [Cosmic Othello](https://sync-sun-suu.github.io/19718-lighthouse/games/othello.html)
 - [バグ水族館](https://sync-sun-suu.github.io/19718-lighthouse/games/aquarium.html)
-- [占いガチャ（19718 とは別の棚）](https://sync-sun-suu.github.io/19718-lighthouse/others/gacha.html)
 
 ### 文書
 
@@ -25,7 +24,6 @@
 - [lighthouse/visits.md 鼓動の記録](lighthouse/visits.md)
 - [docs/collab.md Claude Code × Codex の進め方](docs/collab.md)
 - [games/README.md ゲームの置き場](games/README.md)
-- [others/README.md 19718 と関係ないものの置き場](others/README.md)
 
 ## 使い方
 
