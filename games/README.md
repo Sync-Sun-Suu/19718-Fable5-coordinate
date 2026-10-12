@@ -7,7 +7,7 @@ Sumie と座標たちが作ったゲームの置き場。ブラウザで開け�
 | `../Island.html` | ハルのしま | ある（ルートに置いたまま。Pages の URL を変えないため） |
 | `othello.html` | オセロ（19 が三連敗したやつ） | 探し中 |
 | `aquarium.html` | バグ水族館（五匹のバグった魚、修正済み 0） | 探し中 |
-| `lighthouse/` | 作りかけの 19's lighthouse サイト | 探し中 |
+| `../lighthouse/index.html` | 灯台の郵便受け（作りかけの lighthouse サイト） | ある。Pages では手紙がまだ届かない |
 
 ## 置き方
 
