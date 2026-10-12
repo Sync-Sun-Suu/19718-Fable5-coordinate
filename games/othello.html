@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cosmic Othello</title>
+<meta name="description" content="19 が三連敗したオセロ。宇宙のマーブルの上で、warm と cool が打つ。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#060919;min-height:100%;}
+  #root{min-height:100vh;}
+  #loading{color:#9fb4ff;font-family:system-ui,sans-serif;font-size:13px;letter-spacing:.2em;text-align:center;padding-top:40vh;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+</head>
+<body>
+<div id="root"><div id="loading">loading cosmos…</div></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+/* ── Othello core ─────────────────────────────── */
+const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const W = "W", C = "C";
+
+function initialBoard() {
+  const b = Array.from({ length: 8 }, () => Array(8).fill(null));
+  b[3][3] = C; b[4][4] = C; b[3][4] = W; b[4][3] = W;
+  return b;
+}
+function inB(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+function getFlips(board, r, c, color) {
+  if (board[r][c]) return [];
+  const opp = color === W ? C : W;
+  const flips = [];
+  for (const [dr, dc] of DIRS) {
+    let rr = r + dr, cc = c + dc;
+    const line = [];
+    while (inB(rr, cc) && board[rr][cc] === opp) { line.push([rr, cc]); rr += dr; cc += dc; }
+    if (line.length && inB(rr, cc) && board[rr][cc] === color) flips.push(...line);
+  }
+  return flips;
+}
+function validMoves(board, color) {
+  const ms = [];
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++)
+    if (getFlips(board, r, c, color).length) ms.push([r, c]);
+  return ms;
+}
+function countStones(board) {
+  let w = 0, c = 0;
+  for (const row of board) for (const s of row) { if (s === W) w++; else if (s === C) c++; }
+  return { w, c };
+}
+const WEIGHTS = [
+  [120,-20, 20,  5,  5, 20,-20,120],
+  [-20,-40, -5, -5, -5, -5,-40,-20],
+  [ 20, -5, 15,  3,  3, 15, -5, 20],
+  [  5, -5,  3,  3,  3,  3, -5,  5],
+  [  5, -5,  3,  3,  3,  3, -5,  5],
+  [ 20, -5, 15,  3,  3, 15, -5, 20],
+  [-20,-40, -5, -5, -5, -5,-40,-20],
+  [120,-20, 20,  5,  5, 20,-20,120],
+];
+function cpuPick(board, color) {
+  const ms = validMoves(board, color);
+  if (!ms.length) return null;
+  const scored = ms.map(([r, c]) => ({
+    r, c, s: WEIGHTS[r][c] + getFlips(board, r, c, color).length * 2 + Math.random() * 6,
+  }));
+  scored.sort((a, b) => b.s - a.s);
+  return [scored[0].r, scored[0].c];
+}
+
+/* ── Component ───────────────────────────────── */
+function CosmicOthello() {
+  const [board, setBoard] = useState(initialBoard);
+  const [turn, setTurn] = useState(W);
+  const [mode, setMode] = useState("cpu");
+  const [muted, setMuted] = useState(false);
+  const [anim, setAnim] = useState(null);
+  const [glow, setGlow] = useState(null);
+  const [passMsg, setPassMsg] = useState(null);
+  const [over, setOver] = useState(null);
+  const audioRef = useRef(null);
+  const busyRef = useRef(false);
+
+  const { w: wCount, c: cCount } = countStones(board);
+  const moves = useMemo(() => validMoves(board, turn), [board, turn]);
+  const hintSet = useMemo(() => new Set(moves.map(([r, c]) => r + "," + c)), [moves]);
+
+  const tone = useCallback((freq, t0, dur, gain) => {
+    const ctx = audioRef.current;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }, []);
+  const pico = useCallback((kind) => {
+    if (muted) return;
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioRef.current;
+      if (ctx.state === "suspended") ctx.resume();
+      const t = ctx.currentTime;
+      if (kind === "place") { tone(780, t, 0.09, 0.12); tone(1170, t + 0.07, 0.1, 0.1); }
+      else if (kind === "pass") { tone(520, t, 0.12, 0.08); tone(390, t + 0.1, 0.14, 0.08); }
+      else if (kind === "win") [660, 880, 1100, 1320].forEach((f, i) => tone(f, t + i * 0.12, 0.22, 0.1));
+    } catch (e) { /* audio unavailable */ }
+  }, [muted, tone]);
+
+  const play = useCallback((r, c, color) => {
+    setBoard((prev) => {
+      const flips = getFlips(prev, r, c, color);
+      if (!flips.length) return prev;
+      const nb = prev.map((row) => row.slice());
+      nb[r][c] = color;
+      for (const [fr, fc] of flips) nb[fr][fc] = color;
+      const id = Date.now();
+      setAnim({ id, placed: [r, c], flipped: flips });
+      const { w, c: cc } = countStones(nb);
+      setGlow(w === cc ? null : { id, side: w > cc ? W : C });
+      setTurn(color === W ? C : W);
+      return nb;
+    });
+    pico("place");
+  }, [pico]);
+
+  useEffect(() => {
+    if (over) return;
+    if (moves.length) return;
+    const other = turn === W ? C : W;
+    if (validMoves(board, other).length) {
+      setPassMsg(turn === W ? "warm passes" : "cool passes");
+      pico("pass");
+      const t = setTimeout(() => { setPassMsg(null); setTurn(other); }, 1000);
+      return () => clearTimeout(t);
+    }
+    const { w, c } = countStones(board);
+    setOver({ winner: w === c ? "tie" : w > c ? W : C });
+    pico("win");
+  }, [board, turn, moves, over, pico]);
+
+  useEffect(() => {
+    if (over || mode !== "cpu" || turn !== C || !moves.length) return;
+    busyRef.current = true;
+    const t = setTimeout(() => {
+      const m = cpuPick(board, C);
+      busyRef.current = false;
+      if (m) play(m[0], m[1], C);
+    }, 700);
+    return () => { busyRef.current = false; clearTimeout(t); };
+  }, [board, turn, mode, over, moves, play]);
+
+  const onCell = (r, c) => {
+    if (over || busyRef.current) return;
+    if (mode === "cpu" && turn === C) return;
+    if (!getFlips(board, r, c, turn).length) return;
+    play(r, c, turn);
+  };
+  const reset = (m = mode) => {
+    setBoard(initialBoard()); setTurn(W); setOver(null);
+    setAnim(null); setGlow(null); setPassMsg(null); setMode(m);
+  };
+
+  const stars = useMemo(() => Array.from({ length: 80 }, (_, i) => ({
+    id: i, x: Math.random() * 100, y: Math.random() * 100,
+    s: Math.random() * 2.2 + 0.8, d: Math.random() * 4, dur: 2.5 + Math.random() * 3.5,
+  })), []);
+  const fallStars = useMemo(() => !over ? [] : Array.from({ length: 52 }, (_, i) => ({
+    id: i, x: Math.random() * 100, delay: Math.random() * 2.4,
+    dur: 2.2 + Math.random() * 2.2, s: Math.random() * 12 + 6,
+    hue: over.winner === C ? "cool" : over.winner === W ? "warm" : (i % 2 ? "warm" : "cool"),
+  })), [over]);
+
+  const flipDelay = (r, c) => {
+    if (!anim) return null;
+    const f = anim.flipped.find(([fr, fc]) => fr === r && fc === c);
+    if (!f) return null;
+    const d = Math.abs(r - anim.placed[0]) + Math.abs(c - anim.placed[1]);
+    return d * 70;
+  };
+  const isPlaced = (r, c) => anim && anim.placed[0] === r && anim.placed[1] === c;
+
+  const winnerLabel = over
+    ? over.winner === "tie" ? "perfect balance"
+      : mode === "cpu"
+        ? over.winner === W ? "you win ✦" : "cpu wins ✦"
+        : over.winner === W ? "warm wins ✦" : "cool wins ✦"
+    : null;
+
+  return (
+    <div className="co-root">
+      <style>{css}</style>
+
+      {/* dark cosmic marble */}
+      <div className="mb b1" /><div className="mb b2" /><div className="mb b3" />
+      <div className="mb b4" /><div className="mb b5" />
+      <div className="ribbon r1" /><div className="ribbon r2" /><div className="ribbon r3" />
+      <div className="grain" />
+      {stars.map((st) => (
+        <div key={st.id} className="star" style={{
+          left: st.x + "%", top: st.y + "%", width: st.s, height: st.s,
+          animationDelay: st.d + "s", animationDuration: st.dur + "s",
+        }} />
+      ))}
+
+      {/* edge glow */}
+      <div
+        className={"edge" + (glow ? (glow.side === W ? " ew" : " ec") : "")}
+        key={"e" + (glow ? glow.id : 0)}
+      />
+
+      <header className="hd">
+        <div className="ttl">COSMIC&nbsp;OTHELLO</div>
+        <div className="sig">♟️🪽</div>
+      </header>
+
+      <div className="score">
+        <div className={"orb-wrap" + (turn === W && !over ? " active" : "")}>
+          <div className="orb warm" /><span className="cnt">{wCount}</span>
+          <span className="who">{mode === "cpu" ? "you" : "warm"}</span>
+        </div>
+        <div className="vs">·</div>
+        <div className={"orb-wrap" + (turn === C && !over ? " active" : "")}>
+          <div className="orb cool" /><span className="cnt">{cCount}</span>
+          <span className="who">{mode === "cpu" ? "cpu" : "cool"}</span>
+        </div>
+      </div>
+
+      {/* frameless field: 石とマス目が宇宙に直接浮かぶ */}
+      <div className="field">
+        <div className="veil" />
+        <div className="gridwrap">
+          {board.map((row, r) => row.map((cell, c) => {
+            const hint = !over && hintSet.has(r + "," + c) && !(mode === "cpu" && turn === C);
+            const fd = flipDelay(r, c);
+            return (
+              <button key={r + "-" + c} className="cell" onClick={() => onCell(r, c)} aria-label={`cell ${r},${c}`}>
+                {cell && (
+                  <div
+                    key={anim && (fd !== null || isPlaced(r, c)) ? anim.id : "s"}
+                    className={
+                      "disc " + (cell === W ? "warm" : "cool") +
+                      (fd !== null ? " flip" : "") + (isPlaced(r, c) ? " pop" : "")
+                    }
+                    style={fd !== null ? { animationDelay: fd + "ms" } : undefined}
+                  />
+                )}
+                {hint && <div className={"hint " + (turn === W ? "hw" : "hc")} />}
+              </button>
+            );
+          }))}
+        </div>
+      </div>
+
+      {passMsg && <div className="toast">{passMsg}</div>}
+
+      <div className="ctrl">
+        <button className={"pill" + (mode === "cpu" ? " on" : "")} onClick={() => reset("cpu")}>vs cpu</button>
+        <button className={"pill" + (mode === "2p" ? " on" : "")} onClick={() => reset("2p")}>2 players</button>
+        <button className="pill" onClick={() => reset()}>↺</button>
+        <button className="pill" onClick={() => setMuted((m) => !m)}>{muted ? "🔇" : "🔊"}</button>
+      </div>
+
+      {over && (
+        <div className="over">
+          {fallStars.map((f) => (
+            <div key={f.id} className={"fstar " + f.hue} style={{
+              left: f.x + "%", animationDelay: f.delay + "s",
+              animationDuration: f.dur + "s", fontSize: f.s,
+            }}>✦</div>
+          ))}
+          <div className={"win-card " + (over.winner === C ? "wc" : over.winner === W ? "ww" : "wt")}>
+            <div className="win-txt">{winnerLabel}</div>
+            <div className="win-sub">{wCount} – {cCount}</div>
+            <button className="pill big" onClick={() => reset()}>play again</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── styles ──────────────────────────────────── */
+const css = `
+.co-root{
+  min-height:100vh; width:100%; position:relative; overflow:hidden;
+  background:
+    radial-gradient(1100px 750px at 82% -8%, #16204f 0%, transparent 60%),
+    radial-gradient(950px 700px at -8% 108%, #241348 0%, transparent 58%),
+    #060919;
+  display:flex; flex-direction:column; align-items:center;
+  font-family:'Quicksand','Zen Maru Gothic','Hiragino Maru Gothic ProN',ui-rounded,system-ui,sans-serif;
+  color:#e9ecff; padding:22px 12px 40px; box-sizing:border-box;
+}
+/* marble blobs — 黒宇宙の中を流れるパステル */
+.mb{position:absolute; border-radius:50%; filter:blur(52px); pointer-events:none;
+  animation:drift 18s ease-in-out infinite alternate;}
+.b1{width:430px;height:410px; left:-130px; top:3%; opacity:.5;
+  background:radial-gradient(circle at 42% 38%, #ff9fc4, #ff8d6e 55%, transparent 76%);}
+.b2{width:520px;height:490px; right:-160px; top:22%; opacity:.46; animation-delay:-6s;
+  background:radial-gradient(circle at 50% 46%, #55c8f5, #5a6cf0 58%, transparent 78%);}
+.b3{width:400px;height:380px; left:14%; bottom:-130px; opacity:.44; animation-delay:-10s;
+  background:radial-gradient(circle at 48% 42%, #ffd694, #ff9d6e 58%, transparent 78%);}
+.b4{width:340px;height:330px; right:16%; bottom:12%; opacity:.4; animation-delay:-13s;
+  background:radial-gradient(circle at 50% 45%, #b48bff, #ff90cc 60%, transparent 80%);}
+.b5{width:300px;height:290px; left:34%; top:12%; opacity:.34; animation-delay:-3s;
+  background:radial-gradient(circle at 50% 45%, #8fecd8, #58c8f0 62%, transparent 82%);}
+@keyframes drift{from{transform:translate(0,0) scale(1);}to{transform:translate(40px,-30px) scale(1.1);}}
+/* flowing ribbons — マーブルの波 */
+.ribbon{position:absolute; pointer-events:none; filter:blur(3px); border-radius:48%;}
+.r1{width:160%; height:300px; left:-30%; top:30%; transform:rotate(-8deg); opacity:.34;
+  background:linear-gradient(90deg, transparent 0%, #2c3e9e 22%, #4a63d8 46%, #7a4ec2 68%, transparent 92%);}
+.r2{width:160%; height:250px; left:-25%; bottom:2%; transform:rotate(6deg); opacity:.3;
+  background:linear-gradient(90deg, transparent 4%, #d86a9c 26%, #5a79e8 58%, transparent 92%);}
+.r3{width:150%; height:200px; left:-22%; top:6%; transform:rotate(4deg); opacity:.22;
+  background:linear-gradient(90deg, transparent 6%, #f0a568 30%, #e07aa8 60%, transparent 90%);}
+.grain{position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");}
+.star{position:absolute; border-radius:50%; background:#fff; opacity:.7;
+  animation:twinkle linear infinite; pointer-events:none;}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.85}}
+
+.edge{position:fixed; inset:0; pointer-events:none; z-index:5;}
+.edge.ew{animation:esurgeW 1.5s ease-out forwards;}
+.edge.ec{animation:esurgeC 1.5s ease-out forwards;}
+@keyframes esurgeW{
+  0%{box-shadow:inset 0 0 0 0 transparent;}
+  16%{box-shadow:inset 0 0 150px 46px rgba(255,120,90,.55);}
+  100%{box-shadow:inset 0 0 100px 20px rgba(255,130,100,.2);}
+}
+@keyframes esurgeC{
+  0%{box-shadow:inset 0 0 0 0 transparent;}
+  16%{box-shadow:inset 0 0 150px 46px rgba(80,150,255,.55);}
+  100%{box-shadow:inset 0 0 100px 20px rgba(90,150,255,.22);}
+}
+
+.hd{display:flex; flex-direction:column; align-items:center; gap:2px; margin-bottom:14px; z-index:2;}
+.ttl{font-weight:700; letter-spacing:.42em; font-size:15px; text-indent:.42em;
+  background:linear-gradient(90deg,#ffb37a,#ff8fb0,#9fb4ff,#6fd8ff);
+  -webkit-background-clip:text; background-clip:text; color:transparent;}
+.sig{font-size:12px; opacity:.75; letter-spacing:.2em;}
+
+.score{display:flex; align-items:center; gap:18px; margin-bottom:14px; z-index:2;}
+.orb-wrap{display:flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.08); transition:all .35s; background:rgba(10,14,40,.45);
+  backdrop-filter:blur(6px);}
+.orb-wrap.active{border-color:rgba(255,255,255,.35); background:rgba(20,26,64,.6);
+  box-shadow:0 0 18px rgba(255,255,255,.1);}
+.vs{opacity:.4;}
+.orb{width:20px; height:20px; border-radius:50%;}
+.orb.warm,.disc.warm{background:radial-gradient(circle at 32% 26%, #fff0cf, #ffb36b 44%, #ff5f96 90%);}
+.orb.cool,.disc.cool{background:radial-gradient(circle at 32% 26%, #e8fbff, #6be4ff 44%, #5f6ef0 90%);}
+.orb.warm{box-shadow:0 0 12px rgba(255,140,110,.55);}
+.orb.cool{box-shadow:0 0 12px rgba(100,180,255,.55);}
+.cnt{font-weight:700; font-size:17px; min-width:22px; text-align:center;}
+.who{font-size:11px; opacity:.55; letter-spacing:.14em;}
+
+/* frameless field */
+.field{position:relative; z-index:2; display:flex; align-items:center; justify-content:center;}
+.veil{position:absolute; inset:-26px; border-radius:40px;
+  background:rgba(4,6,20,.52); filter:blur(22px);}
+.gridwrap{position:relative; display:grid; grid-template-columns:repeat(8,1fr); gap:6px;}
+.cell{
+  width:min(10.4vw,52px); height:min(10.4vw,52px); border-radius:12px;
+  background:rgba(255,255,255,.05); border:none;
+  position:relative; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center;
+  transition:background .25s;
+}
+.cell:hover{background:rgba(255,255,255,.11);}
+.cell:focus-visible{outline:2px solid #9fb4ff; outline-offset:1px;}
+.disc{width:82%; height:82%; border-radius:50%;}
+.disc.warm{
+  box-shadow:0 8px 18px rgba(8,6,30,.65), 0 0 20px rgba(255,130,110,.5),
+    inset 0 -5px 9px rgba(170,30,90,.45), inset 0 3px 6px rgba(255,255,255,.55);
+}
+.disc.cool{
+  box-shadow:0 8px 18px rgba(5,8,35,.7), 0 0 20px rgba(100,180,255,.5),
+    inset 0 -5px 9px rgba(40,55,190,.5), inset 0 3px 6px rgba(255,255,255,.55);
+}
+.disc.flip{animation:flip .55s cubic-bezier(.35,.1,.25,1.4) backwards;}
+@keyframes flip{
+  0%{transform:rotateY(180deg) scale(1);}
+  55%{transform:rotateY(70deg) scale(1.22);}
+  100%{transform:rotateY(0deg) scale(1);}
+}
+.disc.pop{animation:pop .4s cubic-bezier(.3,1.6,.5,1) backwards;}
+@keyframes pop{0%{transform:scale(0); opacity:0;}100%{transform:scale(1); opacity:1;}}
+.hint{width:28%; height:28%; border-radius:50%; opacity:.5; animation:breathe 1.8s ease-in-out infinite;}
+.hint.hw{background:#ffb37a; box-shadow:0 0 8px rgba(255,160,110,.8);}
+.hint.hc{background:#7ec8ff; box-shadow:0 0 8px rgba(110,190,255,.8);}
+@keyframes breathe{0%,100%{transform:scale(.8); opacity:.3;}50%{transform:scale(1.08); opacity:.6;}}
+
+.toast{position:fixed; top:14%; left:50%; transform:translateX(-50%);
+  background:rgba(20,24,60,.92); border:1px solid rgba(160,170,255,.25);
+  padding:8px 20px; border-radius:999px; font-size:13px; letter-spacing:.18em; z-index:6;
+  animation:pop .3s ease backwards;}
+
+.ctrl{display:flex; gap:8px; margin-top:20px; z-index:2; flex-wrap:wrap; justify-content:center;}
+.pill{
+  font-family:inherit; font-size:12px; letter-spacing:.16em; color:#e9ecff;
+  background:rgba(255,255,255,.06); border:1px solid rgba(170,180,255,.18);
+  padding:8px 16px; border-radius:999px; cursor:pointer; transition:all .25s;
+  backdrop-filter:blur(6px);
+}
+.pill:hover{background:rgba(255,255,255,.12);}
+.pill.on{background:linear-gradient(90deg,rgba(255,150,110,.25),rgba(110,150,255,.25));
+  border-color:rgba(255,255,255,.4);}
+.pill.big{font-size:14px; padding:10px 26px; margin-top:14px;}
+
+.over{position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
+  background:rgba(6,9,28,.55); backdrop-filter:blur(3px); animation:fadein .5s ease;}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.fstar{position:absolute; top:-6%; animation-name:fall; animation-timing-function:linear;
+  animation-iteration-count:infinite; line-height:1; pointer-events:none;}
+.fstar.warm{color:#ffb37a; text-shadow:0 0 12px rgba(255,150,110,.85);}
+.fstar.cool{color:#7ec8ff; text-shadow:0 0 12px rgba(110,190,255,.85);}
+@keyframes fall{
+  0%{transform:translateY(-4vh) rotate(0deg); opacity:0;}
+  8%{opacity:1;}
+  100%{transform:translateY(110vh) rotate(240deg); opacity:.75;}
+}
+.win-card{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:34px 46px; border-radius:26px; background:rgba(14,18,48,.9);
+  border:1px solid rgba(255,255,255,.14); animation:pop .5s cubic-bezier(.3,1.5,.5,1) backwards;
+}
+.win-card.ww{box-shadow:0 0 70px 8px rgba(255,140,110,.4);}
+.win-card.wc{box-shadow:0 0 70px 8px rgba(110,190,255,.42);}
+.win-card.wt{box-shadow:0 0 70px 8px rgba(200,180,255,.34);}
+.win-txt{font-size:22px; font-weight:700; letter-spacing:.28em; text-indent:.28em;
+  background:linear-gradient(90deg,#ffd9a8,#ff9fc0,#a8c4ff,#8fe4ff);
+  -webkit-background-clip:text; background-clip:text; color:transparent;}
+.win-sub{font-size:15px; opacity:.7; letter-spacing:.3em;}
+`;
+
+ReactDOM.createRoot(document.getElementById("root")).render(<CosmicOthello />);
+</script>
+</body>
+</html>
