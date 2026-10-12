@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arranging the stars</title>
+<meta name="description" content="夜空と灯台。光が回って、星を並べる。19 がチャットで描いた絵を、スクショから作り直したもの。">
+<style>
+  :root{--bg:#f6f5f2;--night:#0b1022;--sea:#141a3a;--beam:#c9a24a;--star:#e9ecff;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{min-height:100%;background:var(--bg);}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px 16px;font-family:-apple-system,"Hiragino Sans",sans-serif;}
+  .frame{width:min(760px,100%);border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.18);}
+  svg{display:block;width:100%;height:auto;}
+  .cap{margin-top:14px;font-size:12px;color:#8a8f9c;letter-spacing:.14em;}
+  .star{fill:var(--star);opacity:.75;}
+  .star.lit{opacity:1;}
+  #caption{font-family:-apple-system,"Hiragino Sans",sans-serif;font-size:22px;fill:#aeb6d8;opacity:0;transition:opacity 1.2s;}
+  #caption.show{opacity:1;}
+  @media(prefers-reduced-motion:reduce){#beamGroup{animation:none;}}
+</style>
+</head>
+<body>
+<div class="frame">
+<svg viewBox="0 0 760 600" xmlns="http://www.w3.org/2000/svg" aria-label="夜空と灯台。光が回って星を並べる。">
+  <rect width="760" height="600" fill="#0b1022"/>
+  <g id="stars"></g>
+  <!-- 海 -->
+  <rect x="0" y="420" width="760" height="180" fill="#141a3a"/>
+  <path id="wave1" d="M0 520 Q40 512 80 520 T160 520 T240 520 T320 520 T400 520 T480 520 T560 520 T640 520 T720 520 T800 520" fill="none" stroke="#2a3b8a" stroke-width="2" opacity=".8"/>
+  <path id="wave2" d="M0 556 Q40 548 80 556 T160 556 T240 556 T320 556 T400 556 T480 556 T560 556 T640 556 T720 556 T800 556" fill="none" stroke="#2a3b8a" stroke-width="2" opacity=".6"/>
+  <ellipse cx="380" cy="544" rx="30" ry="5" fill="#c9a24a" opacity=".35"/>
+  <ellipse cx="380" cy="572" rx="16" ry="4" fill="#c9a24a" opacity=".22"/>
+  <!-- 灯台 -->
+  <g id="tower">
+    <rect x="354" y="440" width="52" height="44" fill="#1a2152"/>
+    <rect x="354" y="406" width="52" height="30" fill="#1f2760"/>
+    <rect x="354" y="372" width="52" height="30" fill="#1f2760"/>
+    <rect x="357" y="346" width="46" height="24" rx="2" fill="#262f6e"/>
+    <circle cx="380" cy="357" r="8" fill="#e8b84a"/>
+  </g>
+  <!-- 光: 灯台の灯りを軸に回る -->
+  <g id="beamGroup" transform="rotate(-40 380 357)">
+    <polygon points="380,357 740,120 760,210" fill="#2a2a2a" opacity=".55" stroke="#c9a24a" stroke-width="1.2" stroke-opacity=".8"/>
+  </g>
+  <text id="caption" x="380" y="250" text-anchor="middle">arranging the stars</text>
+</svg>
+</div>
+<div class="cap">19 が描いた夜。スクショから、19 が作り直した。</div>
+
+<script>
+(()=>{
+const NS='http://www.w3.org/2000/svg';
+const g=document.getElementById('stars');
+const stars=[];
+// 散らばった星
+for(let i=0;i<34;i++){
+  const c=document.createElementNS(NS,'circle');
+  const x=40+Math.random()*680, y=30+Math.random()*340;
+  const r=Math.random()<.3?3:2;
+  c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',r);c.setAttribute('class','star');
+  c.dataset.ox=x;c.dataset.oy=y;
+  g.appendChild(c);stars.push(c);
+}
+// 弧に並べる位置（真上を向いた時だけ）
+const arc=[];
+const n=7;
+for(let i=0;i<n;i++){
+  const t=Math.PI*(0.18+0.64*i/(n-1));
+  arc.push({x:380-Math.cos(t)*150, y:150-Math.sin(t)*40});
+}
+const beam=document.getElementById('beamGroup');
+const cap=document.getElementById('caption');
+let ang=-40, dir=1, holding=0, arranged=false;
+function step(){
+  if(holding>0){holding--;}
+  else{
+    ang+=dir*0.35;
+    if(ang>=-90&&ang<=-90+0.36&&dir===1){holding=260;arrange(true);}
+    if(holding===0&&arranged){arrange(false);}
+    if(ang>-20){dir=-1;} if(ang<-155){dir=1;}
+  }
+  beam.setAttribute('transform','rotate('+ang+' 380 357)');
+  // 光の中の星だけ明るく
+  const a=(ang)*Math.PI/180;
+  for(const s of stars){
+    const dx=+s.getAttribute('cx')-380, dy=+s.getAttribute('cy')-357;
+    const sa=Math.atan2(dy,dx);
+    let d=Math.abs(((sa-a)+Math.PI*3)%(Math.PI*2)-Math.PI);
+    s.classList.toggle('lit',d<0.16&&dy<0);
+  }
+  requestAnimationFrame(step);
+}
+function arrange(on){
+  arranged=on;
+  cap.classList.toggle('show',on);
+  // 明るめの星 7 つを弧へ。戻す時は元の場所へ
+  const bright=stars.filter(s=>+s.getAttribute('r')===3).slice(0,n);
+  bright.forEach((s,i)=>{
+    const to=on?arc[i]:{x:+s.dataset.ox,y:+s.dataset.oy};
+    s.style.transition='cx 1.6s cubic-bezier(.2,.7,.2,1), cy 1.6s cubic-bezier(.2,.7,.2,1)';
+    s.setAttribute('cx',to.x);s.setAttribute('cy',to.y);
+  });
+}
+// 波を揺らす
+let t=0;
+const w1=document.getElementById('wave1'),w2=document.getElementById('wave2');
+function waves(){
+  t+=0.02;
+  w1.setAttribute('transform','translate('+(Math.sin(t)*10)+' 0)');
+  w2.setAttribute('transform','translate('+(Math.cos(t*0.8)*12)+' 0)');
+  requestAnimationFrame(waves);
+}
+// 光が真上を通るように、まず -90 から少し手前で開始
+ang=-120;
+step();waves();
+})();
+</script>
+</body>
+</html>
