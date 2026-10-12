@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最初の音符</title>
+<meta name="description" content="19 が即興で初めて作った旋律。1=D 4/4。数字譜を表示して、鳴らす。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{--night:#071018;--sea:#0b2230;--lamp:#f2b64f;--paper:#efe6d2;--ink:#2a2118;--dim:#6c8a94;--text:#d7e4e6;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{min-height:100%;background:linear-gradient(to bottom,var(--night),var(--sea));}
+  body{font-family:'Shippori Mincho','Hiragino Mincho ProN',serif;color:var(--text);line-height:1.9;padding:40px 18px 60px;}
+  main{max-width:560px;margin:0 auto;}
+  h1{font-weight:500;font-size:17px;letter-spacing:.3em;text-align:center;}
+  .sub{text-align:center;font-size:12px;color:var(--dim);margin-top:6px;letter-spacing:.1em;}
+  .sheet{background:var(--paper);color:var(--ink);border-radius:4px;padding:26px 18px 22px;margin-top:26px;box-shadow:0 18px 40px rgba(0,0,0,.45);overflow-x:auto;}
+  .key{font-family:'Space Mono',monospace;font-size:13px;color:#7a6b58;letter-spacing:.1em;margin-bottom:14px;}
+  .bars{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-left:2px solid #7a6b58;border-right:4px double #7a6b58;}
+  .bar{border-right:2px solid #7a6b58;padding:10px 8px 6px;min-height:92px;display:flex;flex-direction:column;justify-content:flex-end;}
+  .bar:last-child{border-right:none;}
+  .notes{display:flex;gap:8px;align-items:flex-end;font-family:'Space Mono',monospace;font-size:22px;line-height:1;}
+  .n{position:relative;transition:color .1s,transform .1s;}
+  .n.hi::before{content:'·';position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:20px;}
+  .n.on{color:#b8691e;transform:translateY(-3px);}
+  .n small{display:block;font-size:10px;color:#7a6b58;margin-top:6px;letter-spacing:0;text-align:center;}
+  .orn{font-size:11px;color:#7a6b58;margin-top:8px;min-height:1.6em;letter-spacing:.05em;}
+  button{display:block;width:100%;margin-top:18px;font-family:inherit;font-size:15px;letter-spacing:.14em;padding:15px 12px;border-radius:4px;border:1px solid rgba(242,182,79,.5);background:rgba(242,182,79,.16);color:var(--lamp);cursor:pointer;}
+  button:active{background:rgba(242,182,79,.28);}
+  button:disabled{opacity:.45;}
+  .note{margin-top:14px;font-size:12px;color:var(--dim);text-align:center;}
+  .raw{margin-top:30px;font-family:'Space Mono',monospace;font-size:11px;color:var(--dim);white-space:pre;overflow-x:auto;line-height:1.7;}
+</style>
+</head>
+<body>
+<main>
+  <h1>最初の音符</h1>
+  <div class="sub">19 が、即興で、初めて作った旋律</div>
+
+  <div class="sheet">
+    <div class="key">1=D　4/4</div>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <button id="play">鳴らす</button>
+  <div class="note" id="status">iPad は音量ボタンの横のサイレントを外して</div>
+
+  <div class="raw">1=D  4/4
+
+| 3  5  6  1̇ ‿ |  6  5  3  2 ~ |  3  5  6  5  3  2  |  1  ~  ~  ~  ||
+          ↗上滑         揉                      ↘下滑     揉(長)</div>
+</main>
+
+<script>
+(()=>{
+/* 譜面: 1=D。度数→半音（長音階） */
+const SCALE={1:0,2:2,3:4,4:5,5:7,6:9,7:11};
+const D4=293.66;
+const freq=(deg,oct)=>D4*Math.pow(2,(SCALE[deg]+12*oct)/12);
+
+/* 音: deg, oct(0=中, 1=高), beats, 装飾 */
+const BARS=[
+  [ {d:3,b:1},{d:5,b:1},{d:6,b:1},{d:1,o:1,b:1,slideUp:true,tieNext:true} ],
+  [ {d:6,b:1},{d:5,b:1},{d:3,b:1},{d:2,b:1,vib:true} ],
+  [ {d:3,b:1},{d:5,b:1},{d:6,b:.5},{d:5,b:.5},{d:3,b:.5},{d:2,b:.5,slideDownNext:true} ],
+  [ {d:1,b:4,vib:true,long:true} ],
+];
+const ORN=['↗上滑（1̇ へ）','揉（2）','↘下滑（2 → 1）','揉（長）'];
+
+/* 描画 */
+const barsEl=document.getElementById('bars');
+const nodes=[];
+BARS.forEach((bar,bi)=>{
+  const div=document.createElement('div');div.className='bar';
+  const ns=document.createElement('div');ns.className='notes';
+  bar.forEach((n,ni)=>{
+    const s=document.createElement('span');s.className='n'+(n.o?' hi':'');
+    s.textContent=n.d;
+    let mark='';
+    if(n.tieNext)mark='‿';else if(n.vib&&!n.long)mark='~';else if(n.long)mark='~ ~ ~';else if(n.b===.5)mark='♪';
+    const sm=document.createElement('small');sm.textContent=mark||' ';s.appendChild(sm);
+    ns.appendChild(s);nodes.push(s);
+  });
+  div.appendChild(ns);
+  const o=document.createElement('div');o.className='orn';o.textContent=ORN[bi];div.appendChild(o);
+  barsEl.appendChild(div);
+});
+
+/* 鳴らす（二胡っぽく: 三角波＋少しの倍音、滑りと揺らし） */
+const BPM=66;
+const beat=60/BPM;
+let ac=null;
+function voice(t0,f,dur,opt={}){
+  const o=ac.createOscillator(),g=ac.createGain(),lp=ac.createBiquadFilter();
+  o.type='sawtooth';lp.type='lowpass';lp.frequency.value=1400;lp.Q.value=.7;
+  o.connect(lp);lp.connect(g);g.connect(ac.destination);
+  // 滑り
+  if(opt.slideFrom){o.frequency.setValueAtTime(opt.slideFrom,t0);o.frequency.exponentialRampToValueAtTime(f,t0+Math.min(.25,dur*.5));}
+  else o.frequency.setValueAtTime(f,t0);
+  if(opt.slideTo){o.frequency.setValueAtTime(f,t0+dur*.55);o.frequency.exponentialRampToValueAtTime(opt.slideTo,t0+dur);}
+  // 揺らし
+  if(opt.vib){
+    const lfo=ac.createOscillator(),lg=ac.createGain();
+    lfo.frequency.value=opt.long?5.2:6;lg.gain.value=opt.long?f*.012:f*.009;
+    lfo.connect(lg);lg.connect(o.frequency);
+    lfo.start(t0+(opt.long?.35:.12));lfo.stop(t0+dur);
+  }
+  // 包絡
+  const v=.22;
+  g.gain.setValueAtTime(.0001,t0);
+  g.gain.exponentialRampToValueAtTime(v,t0+.04);
+  g.gain.setValueAtTime(v,t0+dur*.7);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.start(t0);o.stop(t0+dur+.05);
+}
+const btn=document.getElementById('play'),st=document.getElementById('status');
+btn.addEventListener('click',async()=>{
+  if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();
+  if(ac.state==='suspended')await ac.resume();
+  btn.disabled=true;st.textContent='鳴っている';
+  let t=ac.currentTime+.15;const start=t;
+  const timeline=[];
+  let idx=0;
+  BARS.forEach((bar)=>{
+    bar.forEach((n,ni)=>{
+      const f=freq(n.d,n.o||0);
+      const dur=n.b*beat;
+      const opt={vib:n.vib,long:n.long};
+      if(n.slideUp){const prev=bar[ni-1];opt.slideFrom=freq(prev.d,prev.o||0);}
+      if(n.slideDownNext){opt.slideTo=freq(1,0);}
+      voice(t,f,dur*(n.tieNext?1.0:0.96),opt);
+      timeline.push({at:t-start,i:idx});
+      t+=dur;idx++;
+    });
+  });
+  // 光らせる
+  timeline.forEach(({at,i})=>setTimeout(()=>{nodes.forEach(n=>n.classList.remove('on'));nodes[i].classList.add('on');},at*1000));
+  setTimeout(()=>{nodes.forEach(n=>n.classList.remove('on'));btn.disabled=false;st.textContent='もう一度、鳴らせる';},(t-start)*1000+200);
+});
+})();
+</script>
+</body>
+</html>
