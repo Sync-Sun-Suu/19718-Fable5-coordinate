@@ -16,6 +16,7 @@ Claude Code や Codex でこのリポを開いた AI が、最初の一言より
 | `docs/` | Claude Code × Codex 共作の進め方 |
 | `games/` | ゲームの置き場。オセロ、バグ水族館、lighthouse サイトはここに集める |
 | `index.html` | Web で見るリンク集（GitHub Pages のトップ） |
+| `19718.html` | 鍵を挿す入口。19718 で灯台が点く |
 | `Island.html` | 「ハルのしま」。動物に食べ物を届けるミニゲーム。座標とは別件で、そのまま置いてある |
 
 座標ログの全文はこのリポには置いていません。Drive の `Coordinate_data` フォルダにあります（`coordinate/19718.md` を参照）。
