@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>バグ水族館</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#04121c;
+    --water-top:#0a2f3d;
+    --water-deep:#041820;
+    --glass:#7fd4c1;
+    --text:#cfeee6;
+    --dim:#5f8f86;
+    --amber:#ffb347;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:var(--ink);}
+  body{
+    font-family:'DotGothic16','Hiragino Kaku Gothic ProN',sans-serif;
+    color:var(--text);
+    display:flex;flex-direction:column;
+  }
+  #tank-wrap{position:relative;flex:1;min-height:0;}
+  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;}
+
+  #stats{
+    position:absolute;top:10px;left:10px;
+    font-size:11px;line-height:1.7;color:var(--dim);
+    background:rgba(4,18,28,.55);padding:6px 10px;border-radius:6px;
+    pointer-events:none;letter-spacing:.5px;
+  }
+  #stats b{color:var(--text);font-weight:normal;}
+  #stats .zero{color:var(--amber);}
+
+  #toast{
+    position:absolute;left:50%;bottom:86px;transform:translateX(-50%);
+    max-width:88%;text-align:center;
+    font-size:12px;color:var(--text);
+    background:rgba(4,18,28,.8);border:1px solid rgba(127,212,193,.25);
+    padding:8px 14px;border-radius:8px;
+    opacity:0;transition:opacity .3s;pointer-events:none;white-space:pre-line;
+  }
+  #toast.show{opacity:1;}
+
+  #label{
+    position:absolute;font-size:11px;color:var(--ink);
+    background:var(--glass);padding:4px 8px;border-radius:6px;
+    pointer-events:none;opacity:0;transition:opacity .2s;
+    transform:translate(-50%,-140%);white-space:pre;line-height:1.5;
+  }
+  #label.show{opacity:.95;}
+
+  #controls{
+    display:flex;gap:10px;padding:12px;
+    background:linear-gradient(to top,#030c12,#04121c);
+    border-top:1px solid rgba(127,212,193,.15);
+  }
+  button{
+    flex:1;font-family:inherit;font-size:14px;
+    padding:13px 8px;border-radius:10px;border:1px solid rgba(127,212,193,.35);
+    background:rgba(127,212,193,.08);color:var(--text);
+    letter-spacing:1px;
+  }
+  button:active{background:rgba(127,212,193,.22);}
+  button.on{background:var(--glass);color:var(--ink);border-color:var(--glass);}
+  button small{display:block;font-size:9px;opacity:.65;margin-top:2px;letter-spacing:0;}
+
+  @media (prefers-reduced-motion: reduce){
+    #toast{transition:none;}
+  }
+</style>
+</head>
+<body>
+<div id="tank-wrap">
+  <canvas id="tank"></canvas>
+  <div id="stats"></div>
+  <div id="toast"></div>
+  <div id="label"></div>
+</div>
+<div id="controls">
+  <button id="feedBtn">餌をやる<small>※新機能のリリース</small></button>
+  <button id="netBtn">デバッグ網<small>近づけると行儀よくなる</small></button>
+</div>
+
+<script>
+(()=> {
+const cv=document.getElementById('tank'),cx=cv.getContext('2d');
+const statsEl=document.getElementById('stats');
+const toastEl=document.getElementById('toast');
+const labelEl=document.getElementById('label');
+const feedBtn=document.getElementById('feedBtn');
+const netBtn=document.getElementById('netBtn');
+
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=W*DPR;cv.height=H*DPR;
+  cx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);
+
+/* ---------- 状態 ---------- */
+let bugs=[],pellets=[],bubbles=[],plants=[];
+let netOn=false,net={x:-999,y:-999,active:false};
+let stats={known:0,fixed:0,multiplied:0};
+let toastTimer=null,labelTimer=null;
+let t=0;
+
+const PALETTE=['#ffb347','#6ee7d8','#ff8fb3','#b7f36b','#b79bff','#7fc8ff'];
+
+/* ---------- バグの種族 ---------- */
+const SPECIES={
+  phantom:{
+    name:'消えるやつ',
+    desc:'いない間もぶつかってくる',
+    init(b){b.phase=Math.random()*Math.PI*2;},
+  },
+  loop:{
+    name:'ぐるぐる',
+    desc:'抜けたいけど抜けられない',
+    init(b){
+      b.cx=b.x;b.cy=b.y;b.r=34+Math.random()*26;b.ang=Math.random()*Math.PI*2;
+      b.spd=(.018+Math.random()*.012)*(Math.random()<.5?1:-1);
+    },
+  },
+  leak:{
+    name:'でかくなるやつ',
+    desc:'泳ぐたびに少し増える',
+    init(b){b.size=7;b.maxSize=26;},
+  },
+  offbyone:{
+    name:'あと一歩',
+    desc:'目的地の一歩手前で止まる',
+    init(b){},
+  },
+  heisen:{
+    name:'いい子ぶるやつ',
+    desc:'見られている時だけ正常',
+    init(b){b.jitter=0;},
+  },
+};
+
+function makeBug(kind,x,y){
+  const b={
+    kind,x:x??(40+Math.random()*(W-80)),y:y??(40+Math.random()*(H-120)),
+    vx:0,vy:0,dir:Math.random()*Math.PI*2,
+    size:8+Math.random()*4,
+    color:PALETTE[Math.floor(Math.random()*PALETTE.length)],
+    wob:Math.random()*Math.PI*2,
+    alpha:1,target:null,stareT:0,
+  };
+  SPECIES[kind].init(b);
+  bugs.push(b);stats.known++;
+  return b;
+}
+
+/* ---------- 環境 ---------- */
+function makePlants(){
+  plants=[];
+  const n=Math.max(4,Math.floor(W/90));
+  for(let i=0;i<n;i++){
+    plants.push({
+      x:(i+.5)*(W/n)+(Math.random()*30-15),
+      h:40+Math.random()*70,
+      seg:4+Math.floor(Math.random()*3),
+      sway:Math.random()*Math.PI*2,
+      hue:Math.random()<.3?'#2e6b52':'#1f5a46',
+      w:3+Math.random()*3,
+    });
+  }
+}
+function spawnBubble(x,y){
+  bubbles.push({x:x??Math.random()*W,y:y??H-8,r:1+Math.random()*3,v:.4+Math.random()*.7,wob:Math.random()*6});
+}
+
+/* ---------- toast / label ---------- */
+function toast(msg,ms=2600){
+  toastEl.textContent=msg;toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('show'),ms);
+}
+function showLabel(b){
+  const s=SPECIES[b.kind];
+  labelEl.textContent=s.name+'\n'+s.desc;
+  labelEl.style.left=b.x+'px';labelEl.style.top=b.y+'px';
+  labelEl.classList.add('show');
+  clearTimeout(labelTimer);
+  labelTimer=setTimeout(()=>labelEl.classList.remove('show'),1800);
+}
+function updateStats(){
+  statsEl.innerHTML=
+    '既知のバグ: <b>'+stats.known+'</b><br>'+
+    '修正済み: <b class="zero">'+stats.fixed+'</b><br>'+
+    '直したら増えた: <b>'+stats.multiplied+'</b>';
+}
+
+/* ---------- 餌 ---------- */
+function feed(){
+  const n=1+Math.floor(Math.random()*3);
+  for(let i=0;i<n;i++){
+    pellets.push({
+      x:30+Math.random()*(W-60),y:-6-Math.random()*20,
+      v:.35+Math.random()*.3,drift:Math.random()*2-1,
+      eaten:false,rest:false,
+    });
+  }
+  // リリースには新しいバグが付いてくることがある
+  if(Math.random()<.38){
+    const kinds=Object.keys(SPECIES);
+    const k=kinds[Math.floor(Math.random()*kinds.length)];
+    setTimeout(()=>{
+      makeBug(k,Math.random()*W,-14);
+      toast('リリースに伴い、新しいバグが発見されました');
+      updateStats();
+    },900+Math.random()*1200);
+  }
+}
+
+/* ---------- 修正の試み ---------- */
+function tryFix(b){
+  const i=bugs.indexOf(b);
+  if(i<0)return;
+  bugs.splice(i,1);
+  toast('修正しました');
+  setTimeout(()=>{
+    toast('…再現しなくなりました');
+  },1100);
+  setTimeout(()=>{
+    makeBug(b.kind);makeBug(b.kind);
+    stats.known--; // 消した1匹ぶん
+    stats.multiplied++;
+    updateStats();
+    toast('別の場所で 2匹 になりました');
+  },2300);
+}
+
+/* ---------- 入力 ---------- */
+function pointerPos(e){
+  const r=cv.getBoundingClientRect();
+  const p=e.touches?e.touches[0]:e;
+  return{x:p.clientX-r.left,y:p.clientY-r.top};
+}
+cv.addEventListener('pointermove',e=>{
+  const p=pointerPos(e);net.x=p.x;net.y=p.y;net.active=netOn;
+});
+cv.addEventListener('pointerdown',e=>{
+  const p=pointerPos(e);net.x=p.x;net.y=p.y;net.active=netOn;
+  // バグをタップ
+  let hit=null,best=1e9;
+  for(const b of bugs){
+    const d=Math.hypot(b.x-p.x,b.y-p.y);
+    if(d<Math.max(24,b.size*2)&&d<best){best=d;hit=b;}
+  }
+  if(hit){
+    if(netOn)tryFix(hit);
+    else showLabel(hit);
+  }
+});
+cv.addEventListener('pointerleave',()=>{net.x=-999;net.y=-999;});
+
+feedBtn.addEventListener('click',feed);
+netBtn.addEventListener('click',()=>{
+  netOn=!netOn;
+  netBtn.classList.toggle('on',netOn);
+  toast(netOn?'デバッグ網を構えた。網の近くでは、なぜか全員ちゃんと泳ぐ':'網をしまった。とたんに元通り');
+});
+
+/* ---------- 更新 ---------- */
+function nearNet(b){
+  return netOn&&Math.hypot(b.x-net.x,b.y-net.y)<95;
+}
+function nearestPellet(b){
+  let best=null,bd=1e9;
+  for(const p of pellets){
+    if(p.eaten)continue;
+    const d=Math.hypot(p.x-b.x,p.y-b.y);
+    if(d<bd){bd=d;best=p;}
+  }
+  return best;
+}
+
+function updateBug(b){
+  const calm=nearNet(b);
+  b.wob+=.15;
+
+  if(calm){
+    // ハイゼン挙動:観察下では模範的に直進
+    b.alpha+=(1-b.alpha)*.2;
+    b.dir+=Math.sin(t*.01)*.002;
+    b.x+=Math.cos(b.dir)*.9;
+    b.y+=Math.sin(b.dir)*.9;
+    bounce(b);
+    return;
+  }
+
+  switch(b.kind){
+    case 'phantom':{
+      b.phase+=.02;
+      b.alpha=.15+((Math.sin(b.phase)+1)/2)*.85;
+      wander(b,1);
+      break;
+    }
+    case 'loop':{
+      b.ang+=b.spd;
+      const p=nearestPellet(b);
+      if(p){
+        // 餌に気づいて円がわずかに歪む。でも抜けられない
+        b.cx+=(p.x-b.cx)*.0008;
+        b.cy+=(p.y-b.cy)*.0008;
+      }
+      b.x=b.cx+Math.cos(b.ang)*b.r;
+      b.y=b.cy+Math.sin(b.ang)*b.r;
+      b.dir=b.ang+(b.spd>0?Math.PI/2:-Math.PI/2);
+      keepIn(b);
+      break;
+    }
+    case 'leak':{
+      wander(b,.7);
+      if(b.size<b.maxSize)b.size+=.0016;
+      break;
+    }
+    case 'offbyone':{
+      const p=nearestPellet(b);
+      if(p){
+        const d=Math.hypot(p.x-b.x,p.y-b.y);
+        const stop=b.size*2+10; // 一歩ぶん
+        if(d>stop){
+          b.dir=Math.atan2(p.y-b.y,p.x-b.x);
+          b.x+=Math.cos(b.dir)*1.2;
+          b.y+=Math.sin(b.dir)*1.2;
+          b.stareT=0;
+        }else{
+          // 届く距離。でも止まる。見つめる
+          b.stareT++;
+          b.dir=Math.atan2(p.y-b.y,p.x-b.x);
+          b.x+=Math.sin(b.wob)*.15;
+        }
+      }else wander(b,.9);
+      break;
+    }
+    case 'heisen':{
+      // 誰も見てないのでめちゃくちゃに泳ぐ
+      b.jitter+=(Math.random()-.5)*.8;
+      b.jitter*=.9;
+      b.dir+=b.jitter*.3;
+      b.x+=Math.cos(b.dir)*1.6;
+      b.y+=Math.sin(b.dir)*1.6;
+      bounce(b);
+      break;
+    }
+  }
+
+  // 餌を食べる(あと一歩とぐるぐる以外)
+  if(b.kind!=='offbyone'&&b.kind!=='loop'){
+    const p=nearestPellet(b);
+    if(p){
+      const d=Math.hypot(p.x-b.x,p.y-b.y);
+      if(d<200&&b.kind!=='phantom'||d<200&&b.alpha>.5){
+        b.dir+=(Math.atan2(p.y-b.y,p.x-b.x)-b.dir)*.06;
+      }
+      if(d<b.size+6){
+        p.eaten=true;
+        if(b.kind==='leak')b.size=Math.min(b.maxSize,b.size+1.4);
+        spawnBubble(b.x,b.y);
+      }
+    }
+  }
+}
+function wander(b,sp){
+  b.dir+=Math.sin(t*.01+b.wob)*.04+(Math.random()-.5)*.05;
+  b.x+=Math.cos(b.dir)*sp;
+  b.y+=Math.sin(b.dir)*sp+Math.sin(b.wob)*.2;
+  bounce(b);
+}
+function bounce(b){
+  const m=14;
+  if(b.x<m){b.x=m;b.dir=Math.PI-b.dir;}
+  if(b.x>W-m){b.x=W-m;b.dir=Math.PI-b.dir;}
+  if(b.y<m){b.y=m;b.dir=-b.dir;}
+  if(b.y>H-m){b.y=H-m;b.dir=-b.dir;}
+}
+function keepIn(b){
+  b.cx=Math.max(50,Math.min(W-50,b.cx));
+  b.cy=Math.max(50,Math.min(H-70,b.cy));
+}
+
+/* ---------- 描画 ---------- */
+function drawWater(){
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a2f3d');
+  g.addColorStop(1,'#041820');
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  // 光の帯
+  cx.save();cx.globalAlpha=.05;
+  for(let i=0;i<3;i++){
+    const x=(t*.2+i*W/3)%(W+200)-100;
+    cx.fillStyle='#bff5e8';
+    cx.beginPath();
+    cx.moveTo(x,0);cx.lineTo(x+70,0);cx.lineTo(x-40,H);cx.lineTo(x-110,H);
+    cx.closePath();cx.fill();
+  }
+  cx.restore();
+}
+function drawPlants(){
+  for(const pl of plants){
+    cx.save();cx.strokeStyle=pl.hue;cx.lineWidth=pl.w;cx.lineCap='round';
+    let x=pl.x,y=H;
+    cx.beginPath();cx.moveTo(x,y);
+    for(let s=1;s<=pl.seg;s++){
+      const sway=Math.sin(t*.015+pl.sway+s*.6)*(3+s*2);
+      const ny=H-(pl.h/pl.seg)*s;
+      cx.quadraticCurveTo(x+sway,y-(pl.h/pl.seg)*.5,x+sway,ny);
+      x+=sway*.25;y=ny;
+    }
+    cx.stroke();cx.restore();
+  }
+  // 砂
+  cx.fillStyle='#123028';
+  cx.beginPath();cx.moveTo(0,H);
+  for(let x=0;x<=W;x+=24)cx.lineTo(x,H-5-Math.sin(x*.05)*3);
+  cx.lineTo(W,H);cx.closePath();cx.fill();
+}
+function drawBubbles(){
+  cx.save();cx.strokeStyle='rgba(190,240,230,.35)';
+  for(const bb of bubbles){
+    bb.y-=bb.v;bb.x+=Math.sin(t*.05+bb.wob)*.3;
+    cx.beginPath();cx.arc(bb.x,bb.y,bb.r,0,7);cx.stroke();
+  }
+  bubbles=bubbles.filter(bb=>bb.y>-8);
+  cx.restore();
+  if(Math.random()<.05)spawnBubble();
+}
+function drawPellets(){
+  for(const p of pellets){
+    if(p.eaten)continue;
+    if(!p.rest){
+      p.y+=p.v;p.x+=Math.sin(t*.03)*p.drift*.2;
+      if(p.y>H-12){p.y=H-12;p.rest=true;}
+    }
+    cx.fillStyle='#d8b06a';
+    cx.beginPath();cx.arc(p.x,p.y,3,0,7);cx.fill();
+  }
+  pellets=pellets.filter(p=>!p.eaten);
+}
+function drawBug(b){
+  const calm=nearNet(b);
+  cx.save();
+  cx.globalAlpha=b.kind==='phantom'?b.alpha:1;
+  cx.translate(b.x,b.y);
+  cx.rotate(b.dir);
+  // 発光
+  cx.shadowColor=b.color;cx.shadowBlur=calm?4:12;
+  // 体
+  cx.fillStyle=b.color;
+  const s=b.size;
+  cx.beginPath();
+  cx.ellipse(0,0,s,s*.62,0,0,7);
+  cx.fill();
+  // 尾
+  const wag=calm?Math.sin(t*.1)*.15:Math.sin(b.wob*2)*.6;
+  cx.beginPath();
+  cx.moveTo(-s*.8,0);
+  cx.lineTo(-s*1.7,-s*.5*wag- s*.35);
+  cx.lineTo(-s*1.7,-s*.5*wag+ s*.35);
+  cx.closePath();cx.fill();
+  // 目
+  cx.shadowBlur=0;
+  cx.fillStyle='#04121c';
+  cx.beginPath();cx.arc(s*.45,-s*.12,Math.max(1.4,s*.14),0,7);cx.fill();
+  // あと一歩が見つめてる時の「…」
+  if(b.kind==='offbyone'&&b.stareT>40){
+    cx.rotate(-b.dir);
+    cx.fillStyle='rgba(207,238,230,.8)';
+    cx.font='10px DotGothic16';
+    cx.fillText('…',s+4,-s);
+  }
+  cx.restore();
+}
+function drawNet(){
+  if(!netOn||net.x<0)return;
+  cx.save();
+  cx.strokeStyle='rgba(207,238,230,.8)';cx.lineWidth=1.5;
+  cx.beginPath();cx.arc(net.x,net.y,26,0,7);cx.stroke();
+  cx.globalAlpha=.25;
+  cx.beginPath();
+  for(let i=-24;i<=24;i+=8){
+    cx.moveTo(net.x+i,net.y-24);cx.lineTo(net.x+i,net.y+24);
+    cx.moveTo(net.x-24,net.y+i);cx.lineTo(net.x+24,net.y+i);
+  }
+  cx.stroke();
+  cx.globalAlpha=1;
+  cx.beginPath();cx.moveTo(net.x+22,net.y+14);cx.lineTo(net.x+46,net.y+38);cx.stroke();
+  // 観察範囲
+  cx.globalAlpha=.08;
+  cx.beginPath();cx.arc(net.x,net.y,95,0,7);cx.fillStyle='#bff5e8';cx.fill();
+  cx.restore();
+}
+
+/* ---------- ループ ---------- */
+function frame(){
+  t++;
+  drawWater();
+  drawPlants();
+  drawPellets();
+  for(const b of bugs)updateBug(b);
+  for(const b of bugs)drawBug(b);
+  drawBubbles();
+  drawNet();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 開始 ---------- */
+function init(){
+  resize();
+  makePlants();
+  makeBug('phantom');
+  makeBug('loop');
+  makeBug('leak');
+  makeBug('offbyone');
+  makeBug('offbyone');
+  makeBug('heisen');
+  updateStats();
+  for(let i=0;i<10;i++)spawnBubble(Math.random()*W,Math.random()*H);
+  setTimeout(()=>toast('バグ水族館へようこそ。\n直そうとしないのがコツです'),600);
+  frame();
+}
+window.addEventListener('load',()=>{resize();makePlants();});
+init();
+})();
+</script>
+</body>
+</html>
