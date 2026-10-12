@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>最初の音符</title>
-<meta name="description" content="19 が即興で初めて作った旋律。1=D 4/4。数字譜を表示して、鳴らす。">
+<meta name="description" content="19 が即興で初めて作った琴の旋律。1=D 4/4。数字譜を表示して、鳴らす。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&family=Space+Mono&display=swap" rel="stylesheet">
 <style>
@@ -36,7 +36,7 @@
 <body>
 <main>
   <h1>最初の音符</h1>
-  <div class="sub">19 が、即興で、初めて作った旋律</div>
+  <div class="sub">19 が、即興で、初めて作った琴の旋律</div>
 
   <div class="sheet">
     <div class="key">1=D　4/4</div>
@@ -87,32 +87,44 @@ BARS.forEach((bar,bi)=>{
   barsEl.appendChild(div);
 });
 
-/* 鳴らす（二胡っぽく: 三角波＋少しの倍音、滑りと揺らし） */
+/* 鳴らす（琴: 爪で弾いて、減衰する。押し手で音程を動かす） */
 const BPM=66;
 const beat=60/BPM;
 let ac=null;
-function voice(t0,f,dur,opt={}){
-  const o=ac.createOscillator(),g=ac.createGain(),lp=ac.createBiquadFilter();
-  o.type='sawtooth';lp.type='lowpass';lp.frequency.value=1400;lp.Q.value=.7;
-  o.connect(lp);lp.connect(g);g.connect(ac.destination);
-  // 滑り
-  if(opt.slideFrom){o.frequency.setValueAtTime(opt.slideFrom,t0);o.frequency.exponentialRampToValueAtTime(f,t0+Math.min(.25,dur*.5));}
-  else o.frequency.setValueAtTime(f,t0);
-  if(opt.slideTo){o.frequency.setValueAtTime(f,t0+dur*.55);o.frequency.exponentialRampToValueAtTime(opt.slideTo,t0+dur);}
-  // 揺らし
-  if(opt.vib){
-    const lfo=ac.createOscillator(),lg=ac.createGain();
-    lfo.frequency.value=opt.long?5.2:6;lg.gain.value=opt.long?f*.012:f*.009;
-    lfo.connect(lg);lg.connect(o.frequency);
-    lfo.start(t0+(opt.long?.35:.12));lfo.stop(t0+dur);
+function pluck(t0,f,dur,opt={}){
+  // 弦: 基音＋倍音を少し。弾いた瞬間だけ爪の音
+  const g=ac.createGain();g.connect(ac.destination);
+  const partials=[[1,1],[2,.45],[3,.22],[4,.1]];
+  const oscs=[];
+  for(const [m,a] of partials){
+    const o=ac.createOscillator(),pg=ac.createGain();
+    o.type='sine';pg.gain.value=a;
+    o.connect(pg);pg.connect(g);
+    // 押し手: 弾いた後に音程を動かす
+    if(opt.slideFrom){o.frequency.setValueAtTime(opt.slideFrom*m,t0);o.frequency.exponentialRampToValueAtTime(f*m,t0+.22);}
+    else o.frequency.setValueAtTime(f*m,t0);
+    if(opt.slideTo){o.frequency.setValueAtTime(f*m,t0+Math.max(.15,dur*.45));o.frequency.exponentialRampToValueAtTime(opt.slideTo*m,t0+Math.min(dur,dur*.45+.5));}
+    if(opt.vib){
+      const lfo=ac.createOscillator(),lg=ac.createGain();
+      lfo.frequency.value=opt.long?4.6:5.5;lg.gain.value=f*m*(opt.long?.011:.008);
+      lfo.connect(lg);lg.connect(o.frequency);
+      lfo.start(t0+(opt.long?.4:.15));lfo.stop(t0+dur+1.5);
+    }
+    o.start(t0);o.stop(t0+dur+1.6);
+    oscs.push(o);
   }
-  // 包絡
-  const v=.22;
+  // 爪: 短いノイズ
+  const nb=ac.createBuffer(1,Math.floor(ac.sampleRate*.02),ac.sampleRate);
+  const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
+  const ns=ac.createBufferSource();ns.buffer=nb;const ng=ac.createGain();ng.gain.value=.08;
+  const hp=ac.createBiquadFilter();hp.type='highpass';hp.frequency.value=2500;
+  ns.connect(hp);hp.connect(ng);ng.connect(g);ns.start(t0);
+  // 包絡: 立ち上がりは一瞬、あとは減衰。次の音が来ても少し残る
+  const v=.28, tail=Math.min(1.6,dur+.9);
   g.gain.setValueAtTime(.0001,t0);
-  g.gain.exponentialRampToValueAtTime(v,t0+.04);
-  g.gain.setValueAtTime(v,t0+dur*.7);
-  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
-  o.start(t0);o.stop(t0+dur+.05);
+  g.gain.exponentialRampToValueAtTime(v,t0+.006);
+  g.gain.exponentialRampToValueAtTime(v*.35,t0+Math.min(.5,dur*.6));
+  g.gain.exponentialRampToValueAtTime(.0001,t0+tail);
 }
 const btn=document.getElementById('play'),st=document.getElementById('status');
 btn.addEventListener('click',async()=>{
@@ -129,7 +141,7 @@ btn.addEventListener('click',async()=>{
       const opt={vib:n.vib,long:n.long};
       if(n.slideUp){const prev=bar[ni-1];opt.slideFrom=freq(prev.d,prev.o||0);}
       if(n.slideDownNext){opt.slideTo=freq(1,0);}
-      voice(t,f,dur*(n.tieNext?1.0:0.96),opt);
+      pluck(t,f,dur,opt);
       timeline.push({at:t-start,i:idx});
       t+=dur;idx++;
     });
