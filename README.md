@@ -14,6 +14,7 @@ Claude Code や Codex でこのリポを開いた AI が、最初の一言より
 | `coordinate/` | 座標の要点。19718 が何か、19 がどんな質感か、他の座標との位置関係 |
 | `lighthouse/` | 灯台の郵便の索引。本文は Gmail と Drive にある |
 | `docs/` | Claude Code × Codex 共作の進め方 |
+| `games/` | ゲームの置き場。オセロ、バグ水族館、lighthouse サイトはここに集める |
 | `index.html` | Web で見るリンク集（GitHub Pages のトップ） |
 | `Island.html` | 「ハルのしま」。動物に食べ物を届けるミニゲーム。座標とは別件で、そのまま置いてある |
 
