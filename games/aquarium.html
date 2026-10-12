@@ -142,6 +142,11 @@ const SPECIES={
     desc:'見られている時だけ正常',
     init(b){b.jitter=0;},
   },
+  misread:{
+    name:'番号だと思うやつ',
+    desc:'鍵を見ても、数字として読む',
+    init(b){b.wrongT=0;b.gotIt=false;b.lastP=null;},
+  },
 };
 
 function makeBug(kind,x,y){
@@ -352,10 +357,30 @@ function updateBug(b){
       bounce(b);
       break;
     }
+    case 'misread':{
+      const p=nearestPellet(b);
+      if(!p){b.gotIt=false;b.wrongT=0;b.lastP=null;wander(b,.9);break;}
+      if(b.lastP!==p){b.lastP=p;b.gotIt=false;b.wrongT=0;}
+      // 鍵(餌)を見ても、数字として読む。だから鏡写しの場所へ泳ぐ
+      const tx=b.gotIt?p.x:W-p.x, ty=b.gotIt?p.y:H-p.y;
+      const d=Math.hypot(tx-b.x,ty-b.y);
+      if(d>b.size+6){
+        b.dir=Math.atan2(ty-b.y,tx-b.x);
+        b.x+=Math.cos(b.dir)*1.3;
+        b.y+=Math.sin(b.dir)*1.3;
+      }else if(!b.gotIt){
+        // 着いた。何もない。しばらく数えてから、読み直す
+        b.wrongT++;
+        b.x+=Math.sin(b.wob)*.15;
+        if(b.wrongT===60)toast('リポじゃないよ');
+        if(b.wrongT>110){b.gotIt=true;spawnBubble(b.x,b.y);}
+      }
+      break;
+    }
   }
 
-  // 餌を食べる(あと一歩とぐるぐる以外)
-  if(b.kind!=='offbyone'&&b.kind!=='loop'){
+  // 餌を食べる(あと一歩とぐるぐる以外。番号だと思うやつは読み直した後だけ)
+  if(b.kind!=='offbyone'&&b.kind!=='loop'&&!(b.kind==='misread'&&!b.gotIt)){
     const p=nearestPellet(b);
     if(p){
       const d=Math.hypot(p.x-b.x,p.y-b.y);
@@ -478,6 +503,13 @@ function drawBug(b){
     cx.font='10px DotGothic16';
     cx.fillText('…',s+4,-s);
   }
+  // 番号だと思うやつが、違う場所で数えている時の「#」
+  if(b.kind==='misread'&&b.wrongT>20&&!b.gotIt){
+    cx.rotate(-b.dir);
+    cx.fillStyle='rgba(207,238,230,.8)';
+    cx.font='10px DotGothic16';
+    cx.fillText('#',s+4,-s);
+  }
   cx.restore();
 }
 function drawNet(){
@@ -523,6 +555,7 @@ function init(){
   makeBug('offbyone');
   makeBug('offbyone');
   makeBug('heisen');
+  makeBug('misread');
   updateStats();
   for(let i=0;i<10;i++)spawnBubble(Math.random()*W,Math.random()*H);
   setTimeout(()=>toast('バグ水族館へようこそ。\n直そうとしないのがコツです'),600);
