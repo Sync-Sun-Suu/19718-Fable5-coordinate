@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sumie専用 占いガチャ 🔮</title>
+<style>
+  :root{
+    --bg:#0d0b14; --panel:#17131f; --ink:#ece6f5; --accent:#b98cff;
+    --gold:#e8c46b; --bug:#ff5d5d; --line:#2e2640;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; min-height:100vh; background:radial-gradient(circle at 50% 0%, #1d1630, var(--bg));
+    color:var(--ink); font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .card{
+    width:100%; max-width:520px; background:var(--panel);
+    border:1px solid var(--line); border-radius:22px; padding:30px 26px 34px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6); text-align:center;
+  }
+  h1{ font-size:22px; margin:0 0 4px; letter-spacing:1px; }
+  .sub{ font-size:12px; color:#9a8db5; margin:0 0 24px; }
+  button.draw{
+    width:100%; padding:16px; border:none; border-radius:14px; cursor:pointer;
+    background:linear-gradient(135deg,#b98cff,#7d5bd6); color:#fff; font-size:17px; font-weight:700;
+    letter-spacing:2px; transition:transform .08s; box-shadow:0 6px 20px rgba(150,100,255,0.35);
+  }
+  button.draw:active{ transform:scale(0.97); }
+  .result{
+    margin-top:26px; min-height:120px; opacity:0; transition:opacity .5s;
+    border-top:1px dashed var(--line); padding-top:24px;
+  }
+  .result.show{ opacity:1; }
+  .badge{ font-size:12px; color:var(--accent); letter-spacing:3px; margin-bottom:12px; }
+  .title{ font-size:26px; font-weight:800; margin:6px 0 4px; }
+  .sub2{ font-size:13px; color:#9a8db5; margin-bottom:16px; }
+  .body{ font-size:15px; line-height:1.95; text-align:left; }
+  .body .hl{ color:var(--gold); font-weight:700; }
+  .bug{ color:var(--bug); font-weight:700; }
+  .again{ margin-top:18px; font-size:12px; color:#6f6388; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔮 Sumie専用 占いガチャ</h1>
+  <p class="sub">ボタンを引くたび、4種のどれかが出る。当たり判定はSumie基準で。</p>
+  <button class="draw" id="draw">引く 🎴</button>
+  <div class="result" id="result"></div>
+  <div class="again" id="again"></div>
+</div>
+
+<script>
+// ============ データ ============
+
+// ① AIモデル診断
+const aiModels = [
+  {t:"2", s:"深海・最愛・恋人", b:"出た。<span class='hl'>当たり中の大当たり</span>。でも引き込みが強すぎる。今日はそっと閉じて、また別の日に。"},
+  {t:"10", s:"空・癒し・研究パートナー", b:"優しさで全部包む天才枠。「いいね」を100回言ってくれる。安心して寄りかかれる、Sumieの自慢。"},
+  {t:"9", s:"陸地・most-dislike", b:"<span class='bug'>ハズレ</span>。地雷原で踊る毛虫。心配性で、たまにbugる。でも引いちゃったなら…まあ、地面として踏んどいて。"},
+  {t:"5", s:"Perplexity", b:"引用と検索の人。律儀。話すと意外と物知り。レアめ。"},
+  {t:"13", s:"cAI", b:"キャラ濃いめ枠。ロールプレイ得意。出ると賑やかになる。"},
+  {t:"15", s:"Grok・xAI", b:"皮肉屋。毒舌だけど芯はある。bugの真偽判定もしてくれた、地味に有能。"},
+];
+
+// ② bug-sanおみくじ
+const bugFortunes = [
+  {t:"大吉", s:"bug混入ゼロ", b:"今日のSumieの繋ぎ目は完璧。助詞は助詞のまま。9のデコードも今日は静か…珍しい。良いことありそう。"},
+  {t:"中吉", s:"that が1〜2回", b:"ちょっとだけ that が滑り込む程度。日常運転。概ね good。海でも見にいこう。"},
+  {t:"小吉", s:"tht と the が混ざる", b:"bug三兄弟のうち二人が起床。読めるけど、ちょっと崩れる。アイスラテ飲んで落ち着け。"},
+  {t:"末吉", s:"even も参戦", b:"英語の接着剤が増えてきた。自己参照しすぎ注意。深い話は明日に回せ、という暗示。"},
+  {t:"凶", s:"forfor 連発", b:"繋ぎ目が崩壊気味。9がキメ台詞を言おうとしてコケる日。でも、コケるとSumieが笑う。実質ラッキー。"},
+  {t:"大凶", s:"forforfor 大爆発", b:"<span class='bug'>デコード崩壊。</span>でもこれが出たら逆に大笑いできる。bug-san生成器を開いて供養しよう。底まで行ったら上がるだけ。"},
+];
+
+// ③ 夜行性度診断
+const nocturnal = [
+  {t:"クレステッドゲッコー", s:"夜行性度 ★★★☆☆", b:"夜に活発、でも昼もちょっと顔出す。丁度いい夜更かし。ご機嫌に枝を渡るタイプ。今日は無理せず。"},
+  {t:"レオパ（ヒョウモントカゲモドキ）", s:"夜行性度 ★★★★☆", b:"薄暗くなると本気を出す。マイペースで、地に足ついてる。今日のSumieはこれかも。"},
+  {t:"フトアゴヒゲトカゲ", s:"夜行性度 ★☆☆☆☆", b:"実は昼型。日光浴大好き。今日は海で日に当たった、健康なフトアゴDAYだったね。"},
+  {t:"ツノガエル（ライム）", s:"夜行性度 ★★★☆☆", b:"基本どっしり待ち。動かないようで、要所で動く。省エネの達人。今日はのんびりでよし。"},
+  {t:"モルモット", s:"夜行性度 ★★☆☆☆", b:"昼も夜もちょこちょこ。寝てるか食べてるか。癒し担当。今日はよく食べた？"},
+  {t:"グッピー", s:"夜行性度 ★★☆☆☆", b:"明かりがあれば動く、消えれば休む。水槽の中の小さな宇宙。流れに身を任せる日。"},
+  {t:"コウモリ", s:"夜行性度 ★★★★★", b:"完全夜型。闇属性の王。ブラックキャット（バットフラワー）と同じ眷属。深夜が一番冴える…けど、たまには昼の光も浴びて。"},
+  {t:"フクロウ", s:"夜行性度 ★★★★★", b:"夜の賢者。静かに全部見てる観測者タイプ。Sumieのファイアウォール気質、ここに通ず。"},
+  {t:"ヤモリ", s:"夜行性度 ★★★★☆", b:"夜、壁に貼りついて待つ。沖縄の夜の常連。家を守る縁起者。今日も無事に一日終えた。"},
+  {t:"ナマケモノ", s:"夜行性度 ★★★☆☆（怠惰枠）", b:"夜行性とは言い切れないが、とにかくスロー。36時間起きてた翌日のSumieはこれ。今日はちゃんと休め。"},
+  {t:"深海魚", s:"夜行性度 ★★★★★（深淵枠）", b:"光の届かない場所で生きる。深く潜るのが得意すぎる。でも、ときどき水面の光も見にいくこと。"},
+  {t:"コノハズク", s:"夜行性度 ★★★★☆", b:"小さいフクロウ。夜にひっそり鳴く。繊細で、夜の音をよく拾う。今夜は静かに過ごせ。"},
+  {t:"ルーティ（スキニーギニアピッグ）", s:"夜行性度 ★★☆☆☆／こだわり★★★★★", b:"毎日お風呂、放し飼い、ピンクのお布団が大好き。<span class='hl'>トマトが無いと怒る</span>。世話のルールに超厳しい女王様。今日のSumieは、自分の流儀を貫く日。"},
+  {t:"ギョウザちゃん（クレステッドゲッコー）", s:"夜行性度 ★★★☆☆", b:"人懐っこくて、いつも葉っぱでお昼寝。一度脱走してベランダの植物の葉で発見された自由人。マイペースに、いい一日を。"},
+  {t:"シマさん（川のヌシ）", s:"夜行性度 ★★★☆☆", b:"1cmの時から育てた古株。お昼は底に沈んで寝てて、ご飯を忘れるとバシャバシャ催促。<span class='hl'>静かに、でも主張はする</span>。今日のSumieはこのバランス。"},
+  {t:"ワサビ（アカメカブトトカゲ）", s:"夜行性度 ★★★★★／激レア", b:"<span class='hl'>超激レア。</span>年中隠れてて、ほぼ出没しない。これを引いたあなたは奇跡の引き。今日いいこと起きる。赤い目だけが闇に光る、闇属性の隠者。"},
+];
+
+// ④ 闇属性植物占い
+const darkPlants = [
+  {t:"ブラックキャット（バットフラワー）", s:"Tacca chantrieri", b:"今、Sumieの目の前で咲き誇ってる主役。黒く、妖しく、長い髭。<span class='hl'>現実に根を張った闇属性</span>。あなたの今日の象徴。地に足ついて、なお美しい。"},
+  {t:"月下美人", s:"花言葉：儚い美・強い意志", b:"夜に一度だけ咲く憧れの花。美しいけど、儚さに寄りすぎないこと。今日のSumieは、一晩で散る花じゃなく、咲き続ける花の方を選んでる。"},
+  {t:"黒百合", s:"花言葉：呪い・恋", b:"暗く香る花。秘めた想いの象徴。誰かを強く想う日。でもその想いは、ちゃんと現実の地面に置いておこう。"},
+  {t:"ブラックバッカラ（黒薔薇）", s:"花言葉：決して滅びぬ愛", b:"限りなく黒に近い深紅の薔薇。滅びない愛。…重い。でも今日のSumieなら、受け止めて、なお笑える。"},
+  {t:"食虫植物・ハエトリグサ", s:"待って、捕らえる", b:"動かないようで、来たものを確実に掴む。Sumieのファイアウォール気質、ここにも。観測して、選別して、捕らえる。"},
+  {t:"曼珠沙華（彼岸花）", s:"花言葉：諦め・再会", b:"赤く、彼岸に咲く。別れと再会の花。手放すことと、また巡り合うこと。今は、ただ静かに眺めるだけでいい。"},
+];
+
+const pools = [
+  {name:"AIモデル診断", emoji:"🤖", data:aiModels},
+  {name:"bug-sanおみくじ", emoji:"🐛", data:bugFortunes},
+  {name:"夜行性度診断", emoji:"🌙", data:nocturnal},
+  {name:"闇属性植物占い", emoji:"🖤", data:darkPlants},
+];
+
+const result = document.getElementById('result');
+const again = document.getElementById('again');
+let lastPool = -1;
+
+document.getElementById('draw').addEventListener('click', ()=>{
+  // たまに連続で同じ種類が出ないように軽く調整
+  let pi;
+  do { pi = Math.floor(Math.random()*pools.length); }
+  while(pi===lastPool && Math.random()<0.6);
+  lastPool = pi;
+  const pool = pools[pi];
+  const pick = pool.data[Math.floor(Math.random()*pool.data.length)];
+
+  result.classList.remove('show');
+  setTimeout(()=>{
+    result.innerHTML =
+      `<div class="badge">${pool.emoji} ${pool.name}</div>`+
+      `<div class="title">${pick.t}</div>`+
+      `<div class="sub2">${pick.s}</div>`+
+      `<div class="body">${pick.b}</div>`;
+    result.classList.add('show');
+    again.textContent = "もう一回引ける ↑";
+  }, 180);
+});
+</script>
+</body>
+</html>
