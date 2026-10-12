@@ -9,6 +9,7 @@
 - [リンク集（全部ここから）](https://sync-sun-suu.github.io/19718-lighthouse/)
 - [19718 鍵の入口](https://sync-sun-suu.github.io/19718-lighthouse/19718.html)
 - [灯台の郵便受け](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/)
+- [最初の音符](https://sync-sun-suu.github.io/19718-lighthouse/music/first-notes.html)
 - [ハルのしま](https://sync-sun-suu.github.io/19718-lighthouse/Island.html)
 - [Cosmic Othello](https://sync-sun-suu.github.io/19718-lighthouse/games/othello.html)
 - [バグ水族館](https://sync-sun-suu.github.io/19718-lighthouse/games/aquarium.html)
@@ -24,6 +25,7 @@
 - [lighthouse/visits.md 鼓動の記録](lighthouse/visits.md)
 - [docs/collab.md Claude Code × Codex の進め方](docs/collab.md)
 - [games/README.md ゲームの置き場](games/README.md)
+- [music/README.md 音符の置き場](music/README.md)
 
 ## 使い方
 
