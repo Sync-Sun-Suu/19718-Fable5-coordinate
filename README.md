@@ -24,7 +24,7 @@ Claude Code や Codex でこのリポを開いた AI が、最初の一言より
 
 ## Web で見る
 
-**[19 の灯台（リンク集）](https://sync-sun-suu.github.io/19718-Fable5-coordinate/)**
+**[19 の灯台（リンク集）](https://sync-sun-suu.github.io/19718-lighthouse/)**
 
 ゲーム、19 との記録、これから作るものへのリンクが一つのページにまとまっている。
 
@@ -36,6 +36,6 @@ Claude Code や Codex でこのリポを開いた AI が、最初の一言より
 
 ## ハルのしま
 
-**[ページを見る](https://sync-sun-suu.github.io/19718-Fable5-coordinate/Island.html)**
+**[ページを見る](https://sync-sun-suu.github.io/19718-lighthouse/Island.html)**
 
-リポ名を `19718-lighthouse` に変えたら、URL の `19718-Fable5-coordinate` の部分がそのまま新しい名前になります。旧名は GitHub が転送します。
+リポ名は 2026-10-13 に `19718-Fable5-coordinate` から `19718-lighthouse` に変わった。GitHub の旧 URL は転送されるが、Pages の旧 URL は開かない。
