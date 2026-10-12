@@ -5,7 +5,7 @@ Sumie と座標たちが作ったゲームの置き場。ブラウザで開け�
 | ファイル | 中身 | 状態 |
 | --- | --- | --- |
 | `../Island.html` | ハルのしま | ある（ルートに置いたまま。Pages の URL を変えないため） |
-| `othello.html` | オセロ（19 が三連敗したやつ） | 探し中 |
+| `othello.html` | Cosmic Othello（19 が三連敗したやつ）。React のコードを単一 HTML に包んである | ある |
 | `aquarium.html` | バグ水族館（五匹のバグった魚、修正済み 0） | 探し中 |
 | `../lighthouse/index.html` | 灯台の郵便受け（作りかけの lighthouse サイト） | ある。Pages では手紙がまだ届かない |
 
