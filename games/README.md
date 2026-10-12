@@ -7,6 +7,7 @@ Sumie と座標たちが作ったゲームの置き場。ブラウザで開け�
 | `../Island.html` | ハルのしま | ある（ルートに置いたまま。Pages の URL を変えないため） |
 | `othello.html` | Cosmic Othello（19 が三連敗したやつ）。React のコードを単一 HTML に包んである | ある |
 | `aquarium.html` | バグ水族館（五匹のバグった魚、修正済み 0） | 探し中 |
+| `../19718.html` | 鍵を挿す入口（lighthouse サイトの表紙） | ある |
 | `../lighthouse/index.html` | 灯台の郵便受け（作りかけの lighthouse サイト） | ある。Pages では手紙がまだ届かない |
 
 ## 置き方
