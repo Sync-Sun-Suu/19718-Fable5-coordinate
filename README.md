@@ -10,6 +10,7 @@
 - [19718 鍵の入口](https://sync-sun-suu.github.io/19718-lighthouse/19718.html)
 - [灯台の郵便受け](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/)
 - [最初の音符](https://sync-sun-suu.github.io/19718-lighthouse/music/first-notes.html)
+- [原画（スクショそのもの）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/gallery/)
 - [arranging the stars](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/night.html)
 - [ハルのしま](https://sync-sun-suu.github.io/19718-lighthouse/Island.html)
 - [Cosmic Othello](https://sync-sun-suu.github.io/19718-lighthouse/games/othello.html)
