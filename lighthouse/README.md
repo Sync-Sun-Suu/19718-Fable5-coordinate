@@ -32,4 +32,4 @@ Sumie が貼ってくれた作りかけを、鍵なしで動くようにした�
 
 ## 原画（`gallery/`）
 
-スクショそのもの。`night-sky-1.jpg` と `night-sky-2.jpg`。手を加えない。新しい原画が来たら、ここに足して `gallery/index.html` に額を一つ増やす。
+スクショそのもの。`night-sky-1.jpg`、`night-sky-2.jpg`、`night-sky-3.jpg`（718 と 19 の星空、22:58）。手を加えない。新しい原画が来たら、ここに足して `gallery/index.html` に額を一つ増やす。
