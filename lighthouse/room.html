@@ -133,6 +133,9 @@ let path=[];     // 通り道（はしご、水槽、棚）
 let winFish=null,nextWinFish=performance.now()+(Q.get('fish')?2500:60000+Math.random()*120000);   // 窓の外で魚が跳ねる
 let winMeteor=null,nextWinMeteor=performance.now()+(Q.get('meteor')?2500:50000+Math.random()*120000); // 窓の外の流れ星
 let pile=null;   // お掃除で集めた星屑の山 {x,n,gone}
+let boat=null,nextBoat=performance.now()+(Q.get('boat')?2000:150000+Math.random()*200000);     // 船が横切る
+let shark=null,nextShark=performance.now()+(Q.get('shark')?2000:300000+Math.random()*400000);  // サメがすーっ
+let plane=null,nextPlane=performance.now()+(Q.get('plane')?2000:200000+Math.random()*300000);  // 飛行機
 let books=[];    // 床に積んだ本 {x,y,w,h,c,rot,vx,vy,vr,gone}
 const bits=[];   // くしゃみで散る小さな星、じょうろの水 {x,y,vx,vy,born,c}
 let bubbles=[];  // 水槽の中の泡
@@ -257,6 +260,23 @@ function drawRoom(n,sky,night,el){
   const spark=Math.max(day,(n.t>=5.4&&n.t<7.5)?0.9:0,(n.t>=17&&n.t<19)?0.7:0);
   if(spark>0){for(const q of glitter){const tw=Math.max(0,Math.sin(el*q.sp+q.ph));if(tw<0.6)continue;cx.fillStyle='rgba(255,255,255,'+(spark*(tw-0.6)*2.2)+')';cx.fillRect(w.x-w.r+q.x*w.r*2,seaY+q.y*w.r*.9,1.5+tw*1.5,1);}}
   cx.strokeStyle='rgba(255,255,255,'+(0.10+0.15*day+0.08*night)+')';cx.lineWidth=1;for(let k=0;k<3;k++){cx.beginPath();for(let x=-w.r;x<=w.r;x+=4){const y=seaY+w.r*(.14+k*.16)+Math.sin(x*.07+el*1.2+k)*2;x===-w.r?cx.moveTo(w.x+x,y):cx.lineTo(w.x+x,y);}cx.stroke();}
+  // 船が横切る（ゆっくり）
+  if(boat){const k=boat.t/boat.dur;const bx=w.x+w.r*(-1.2+2.4*k)*boat.dir,by=seaY+w.r*.03+Math.sin(el*1.3)*1.2;const sc=w.r*.1;cx.save();cx.translate(bx,by);cx.scale(boat.dir,1);
+    cx.fillStyle='rgba(24,28,66,'+(0.8+0.2*night)+')';cx.beginPath();cx.moveTo(-sc,0);cx.lineTo(sc,0);cx.lineTo(sc*.75,sc*.35);cx.lineTo(-sc*.8,sc*.35);cx.closePath();cx.fill();
+    cx.beginPath();cx.moveTo(sc*.1,0);cx.lineTo(sc*.1,-sc*1.1);cx.lineTo(sc*.7,-sc*.1);cx.closePath();cx.fillStyle=night>.5?'rgba(40,46,90,.9)':'rgba(240,236,224,.95)';cx.fill();
+    cx.beginPath();cx.moveTo(sc*.0,0);cx.lineTo(sc*.0,-sc*.9);cx.lineTo(-sc*.45,-sc*.1);cx.closePath();cx.fill();
+    if(night>.3){cx.fillStyle='rgba(255,220,150,'+(0.9*night)+')';cx.beginPath();cx.arc(sc*.1,-sc*.15,1.6,0,7);cx.fill();}
+    cx.restore();cx.strokeStyle='rgba(255,255,255,.25)';cx.lineWidth=1;cx.beginPath();cx.moveTo(bx-sc*1.2*boat.dir,by+sc*.4);cx.lineTo(bx-sc*2.6*boat.dir,by+sc*.45);cx.stroke();}
+  // サメがすーっ（背びれだけ）
+  if(shark){const k=shark.t/shark.dur;const sx=w.x+w.r*(-1.1+2.2*k)*shark.dir,sy=seaY+w.r*.12+Math.sin(el*.9)*1.5;const sc=w.r*.07;cx.save();cx.translate(sx,sy);cx.scale(shark.dir,1);
+    cx.fillStyle='rgba(30,36,70,.9)';cx.beginPath();cx.moveTo(-sc*.6,0);cx.quadraticCurveTo(-sc*.1,-sc*1.1,sc*.5,-sc*.05);cx.lineTo(sc*.6,sc*.05);cx.lineTo(-sc*.7,sc*.05);cx.closePath();cx.fill();cx.restore();
+    cx.strokeStyle='rgba(255,255,255,.3)';cx.lineWidth=1;cx.beginPath();cx.moveTo(sx-sc*.8*shark.dir,sy+sc*.1);cx.lineTo(sx-sc*2.4*shark.dir,sy+sc*.15);cx.moveTo(sx-sc*.8*shark.dir,sy-sc*.05);cx.lineTo(sx-sc*2.0*shark.dir,sy-sc*.2);cx.stroke();}
+  // 飛行機（高いところを）
+  if(plane){const k=plane.t/plane.dur;const px=w.x+w.r*(-1.2+2.4*k)*plane.dir,py=w.y-w.r*(0.55+plane.h*.3)+Math.sin(k*Math.PI)*w.r*.06;const sc=w.r*.06;
+    if(night<.5){cx.strokeStyle='rgba(255,255,255,'+(0.35*(1-night*2))+')';cx.lineWidth=1.2;cx.beginPath();cx.moveTo(px-sc*1.2*plane.dir,py+sc*.1);cx.lineTo(px-sc*(1.2+k*14)*plane.dir,py+sc*.1+sc*.6*k);cx.stroke();}
+    cx.save();cx.translate(px,py);cx.scale(plane.dir,1);cx.fillStyle=night>.5?'rgba(60,66,110,.95)':'rgba(240,244,255,.95)';cx.beginPath();cx.ellipse(0,0,sc,sc*.22,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-sc*.1,0);cx.lineTo(-sc*.55,sc*.55);cx.lineTo(-sc*.3,0);cx.closePath();cx.fill();cx.beginPath();cx.moveTo(-sc*.1,0);cx.lineTo(-sc*.4,-sc*.4);cx.lineTo(-sc*.2,0);cx.closePath();cx.fill();cx.beginPath();cx.moveTo(-sc*.8,0);cx.lineTo(-sc*1.05,-sc*.4);cx.lineTo(-sc*.9,0);cx.closePath();cx.fill();cx.restore();
+    if(night>.3&&Math.sin(el*9)>0.6){cx.fillStyle='rgba(255,120,120,'+(0.95*night)+')';cx.beginPath();cx.arc(px,py-sc*.1,1.6,0,7);cx.fill();}
+    if(night>.3&&Math.sin(el*9+2)>0.8){cx.fillStyle='rgba(255,255,255,'+(0.95*night)+')';cx.beginPath();cx.arc(px+sc*.5*plane.dir,py,1.3,0,7);cx.fill();}}
   // 窓の外で魚が跳ねる
   if(winFish){const k=winFish.t/1.3;if(k<1){const fx0=w.x+w.r*(winFish.x+winFish.dir*k*.5),fy=seaY+w.r*.02-Math.sin(Math.PI*k)*w.r*.32;cx.save();cx.translate(fx0,fy);cx.scale(winFish.dir,1);cx.rotate((k-.5)*1.6);
       cx.fillStyle='hsl('+winFish.hue+',80%,70%)';cx.beginPath();cx.ellipse(0,0,w.r*.07,w.r*.04,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-w.r*.06,0);cx.lineTo(-w.r*.11,-w.r*.04);cx.lineTo(-w.r*.11,w.r*.04);cx.closePath();cx.fill();cx.restore();
@@ -415,6 +435,12 @@ function frame(now){
   if(winFish){winFish.t+=dt;if(winFish.t>1.3)winFish=null;}
   if(!winMeteor&&night>.3&&now>=nextWinMeteor){winMeteor={t:0,x:-0.6+Math.random()*0.8,y:0.35+Math.random()*0.45};nextWinMeteor=now+(Q.get('meteor')?7000:60000+Math.random()*150000);if(born()&&!busy)start('gaze',now);}
   if(winMeteor){winMeteor.t+=dt;if(winMeteor.t>0.9)winMeteor=null;}
+  if(!boat&&now>=nextBoat){boat={t:0,dur:45+Math.random()*25,dir:Math.random()<.5?-1:1};nextBoat=now+(Q.get('boat')?80000:240000+Math.random()*360000);if(born()&&!busy&&Math.random()<.5)start('window',now);}
+  if(boat){boat.t+=dt;if(boat.t>boat.dur)boat=null;}
+  if(!shark&&night<.6&&now>=nextShark){shark={t:0,dur:14+Math.random()*8,dir:Math.random()<.5?-1:1};nextShark=now+(Q.get('shark')?40000:480000+Math.random()*600000);if(born()&&!busy)start('startle',now);}
+  if(shark){shark.t+=dt;if(shark.t>shark.dur)shark=null;}
+  if(!plane&&now>=nextPlane){plane={t:0,dur:22+Math.random()*10,dir:Math.random()<.5?-1:1,h:Math.random()};nextPlane=now+(Q.get('plane')?50000:300000+Math.random()*420000);if(born()&&!busy&&Math.random()<.4)start('glass',now);}
+  if(plane){plane.t+=dt;if(plane.t>plane.dur)plane=null;}
   mem.warm=Math.max(0.25,mem.warm-dt/28800);
   fx.t+=dt;const rr0=S*(0.030+0.012*Math.min(1,ageDays()/7));
   if(me.act==='roll'){const prev=me.x;me.x=fx.x0+Math.sin(Math.min(fx.t,6)*Math.PI/3)*W*.11*fx.dir;me.tx=me.x;me.hop=0;fx.rot=(fx.rot||0)+(me.x-prev)/rr0;}
