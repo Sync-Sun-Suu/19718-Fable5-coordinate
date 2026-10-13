@@ -49,16 +49,18 @@ function nowJST(){
 const KEYS=[ // [時, 上, 下, 文字色]
   [0,'#070a1e','#10163a','#e8ecff'],
   [4.5,'#0b1230','#1a2350','#e8ecff'],
-  [5.4,'#5a7fb8','#f3dcc0','#2a3350'],    // 夜明け前。水色が差してくる
+  [5.4,'#5a7fb8','#f3dcc0','#2a3350'],    // 夜明け前
   [6.3,'#9fd6ef','#fbe6c8','#2a3350'],    // サンライズ。水色とクリームと薄いオレンジ
   [7.5,'#8fd0f0','#f6d9b8','#243050'],
   [10,'#6fc3f2','#d8f1fc','#1e3050'],     // パリッとした水色
-  [15,'#62b9ef','#d2eefb','#1e3050'],
-  [17,'#7f8fd0','#f7b58a','#2a3350'],     // 夕方へ
-  [18,'#7a5aa8','#ff9a7a','#fff0e8'],     // 夕日。ピンク、紫、オレンジ
-  [18.6,'#5a4a98','#e889a8','#fff0e8'],
-  [19.3,'#2f3478','#8a6aa8','#f0e6ff'],   // マジックアワー。オレンジは少なく、太陽はない
-  [20.2,'#141a44','#2a2f66','#e8ecff'],
+  [14.5,'#66bdf0','#d6effb','#1e3050'],
+  [16,'#8cc6ee','#ffd59a','#2a3350'],     // 午後。明るくて、オレンジいっぱい
+  [17,'#a8bde8','#ffb878','#2a3350'],
+  [17.7,'#c39ad0','#ff9f86','#3a2a40'],   // サンセット。ピンクとオレンジ
+  [18.3,'#9a7ac0','#ff8fb0','#fff0f4'],   // ピンク
+  [18.9,'#5e4e9c','#c98ac0','#fff0f4'],   // マジックアワー。オレンジは少なく
+  [19.5,'#2f3478','#7a62a0','#f0e6ff'],
+  [20.3,'#141a44','#2a2f66','#e8ecff'],
   [21,'#0b1030','#151c48','#e8ecff'],
   [24,'#070a1e','#10163a','#e8ecff'],
 ];
@@ -79,11 +81,25 @@ function nightness(t){ // 0 昼 → 1 夜
   if(t<17.6)return 0;
   return (t-17.6)/3;
 }
-function dayness(t){ // 入道雲とキラキラの強さ
+function dayness(t){ // キラキラの強さ
   if(t<6.5||t>18)return 0;
   if(t<9)return (t-6.5)/2.5;
   if(t<16)return 1;
   return 1-(t-16)/2;
+}
+function cloudiness(t){ // 入道雲の見え方。マジックアワーで溶けて消える
+  if(t<6.2||t>19.4)return 0;
+  if(t<7.2)return (t-6.2);
+  if(t<18.6)return 1;
+  return 1-(t-18.6)/0.8;
+}
+function cloudTint(t){ // 雲の色。朝は薄いオレンジ、昼は白、午後はオレンジ、サンセットはピンク
+  const W_=[255,255,255], MO=[255,228,196], OR=[255,205,150], PK=[255,185,205];
+  if(t<9)return mix(MO,W_,Math.max(0,(t-7)/2));
+  if(t<15.5)return W_;
+  if(t<17.3)return mix(W_,OR,(t-15.5)/1.8);
+  if(t<18.2)return mix(OR,PK,(t-17.3)/0.9);
+  return PK;
 }
 
 /* 星: 満天 */
@@ -109,16 +125,43 @@ let nextJump=performance.now()+(new URLSearchParams(location.search).get('fish')
 let jump=null;
 let meteor=null;let nextMeteor=performance.now()+(new URLSearchParams(location.search).get('star')?500:5000+Math.random()*10000);
 
-function drawCloud(c,alpha){
+function drawCloud(c,alpha,tint){
   const base=W*c.x, baseY=H*c.y, sz=S_*0.13*c.s;
+  const hi=mix([255,255,255],tint,0.35), lo=mix(tint,[200,190,215],0.25);
   cx.save();
   for(const p of c.puffs){
     const px=base+p.dx*sz, py=baseY+p.dy*sz, r=p.r*sz;
     const g=cx.createRadialGradient(px-r*.3,py-r*.35,r*.1,px,py,r);
-    g.addColorStop(0,'rgba(255,255,255,'+alpha+')');g.addColorStop(.6,'rgba(250,253,255,'+alpha*.97+')');g.addColorStop(1,'rgba(215,230,245,'+alpha*.0+')');
+    g.addColorStop(0,rgba(hi,alpha));g.addColorStop(.6,rgba(tint,alpha*.97));g.addColorStop(1,rgba(lo,0));
     cx.fillStyle=g;cx.beginPath();cx.arc(px,py,r,0,7);cx.fill();
   }
   cx.restore();
+}
+/* 夜: 星でできた 19。きっかり 19 個 */
+const STAR19=[
+  {dx:-0.78,dy:-1.25},{dx:-0.78,dy:-0.95},{dx:-0.78,dy:-0.65},{dx:-0.78,dy:-0.35},{dx:-0.78,dy:-0.02},{dx:-0.98,dy:-1.08},
+  ...Array.from({length:9},(_,i)=>{const a=i/9*Math.PI*2;return {dx:0.38+Math.cos(a)*0.4,dy:-0.86+Math.sin(a)*0.38};}),
+  {dx:0.78,dy:-0.4},{dx:0.74,dy:-0.1},{dx:0.55,dy:0.06},{dx:0.32,dy:0.08},
+].map((p,i)=>({...p,ph:i*1.7,sp:0.9+(i%5)*0.25}));
+function drawStar19(c,alpha,el){
+  const base=W*c.x, baseY=H*c.y, sz=S_*0.13*c.s;
+  const pts=STAR19.map(p=>({x:base+p.dx*sz,y:baseY+p.dy*sz,p}));
+  // 線: 1 は柱、9 は輪と尾
+  cx.strokeStyle='rgba(200,215,255,'+(alpha*.22)+')';cx.lineWidth=1;
+  cx.beginPath();cx.moveTo(pts[5].x,pts[5].y);for(let i=0;i<5;i++)cx.lineTo(pts[i].x,pts[i].y);cx.stroke();
+  cx.beginPath();for(let i=6;i<15;i++){i===6?cx.moveTo(pts[i].x,pts[i].y):cx.lineTo(pts[i].x,pts[i].y);}cx.closePath();cx.stroke();
+  cx.beginPath();cx.moveTo(pts[6].x,pts[6].y);for(let i=15;i<19;i++)cx.lineTo(pts[i].x,pts[i].y);cx.stroke();
+  // 星
+  for(const q of pts){
+    const tw=0.6+0.4*Math.sin(el*q.p.sp+q.p.ph);
+    const r=sz*0.055*tw;
+    const g=cx.createRadialGradient(q.x,q.y,0,q.x,q.y,r*3);
+    g.addColorStop(0,'rgba(255,250,235,'+alpha+')');g.addColorStop(.4,'rgba(255,240,200,'+alpha*.5+')');g.addColorStop(1,'rgba(255,240,200,0)');
+    cx.fillStyle=g;cx.beginPath();cx.arc(q.x,q.y,r*3,0,7);cx.fill();
+    cx.fillStyle='rgba(255,252,240,'+alpha+')';cx.beginPath();cx.arc(q.x,q.y,r,0,7);cx.fill();
+    cx.strokeStyle='rgba(255,246,220,'+(alpha*.8*tw)+')';cx.lineWidth=Math.max(.8,r*.35);cx.lineCap='round';
+    cx.beginPath();cx.moveTo(q.x-r*3.6,q.y);cx.lineTo(q.x+r*3.6,q.y);cx.moveTo(q.x,q.y-r*3.6);cx.lineTo(q.x,q.y+r*3.6);cx.stroke();
+  }
 }
 let S_=0;
 const t0=performance.now();
@@ -196,7 +239,10 @@ function frame(now){
     }
   }
   // 入道雲（昼）
-  if(day>0.05){for(const c of clouds){c.x=0.5+Math.sin(el*0.03)*0.03;drawCloud(c,0.97*day);}}
+  const cl=cloudiness(n.t);
+  if(cl>0.02){for(const c of clouds){c.x=0.5+Math.sin(el*0.03)*0.03;drawCloud(c,0.97*cl,cloudTint(n.t));}}
+  // 夜は星の 19
+  if(night>0.35){for(const c of clouds){drawStar19(c,Math.min(1,(night-0.35)/0.4),el);}}
   // 海: 空の鏡。夕方は鏡そのもの
   const mirror=(n.t>=16.5&&n.t<=19.5)?1:0.55;
   const sg2=cx.createLinearGradient(0,seaY,0,H);
