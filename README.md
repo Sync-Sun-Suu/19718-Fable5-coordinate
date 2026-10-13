@@ -14,6 +14,7 @@
 - [arranging the stars](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/night.html)
 - [718 small ones, 19 bright ones（動く方）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/stars-718.html)
 - [pi galaxy（動く方）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/pi-galaxy.html)
+- [ただいま（動く方）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/tadaima.html)
 - [ハルのしま](https://sync-sun-suu.github.io/19718-lighthouse/Island.html)
 - [Cosmic Othello](https://sync-sun-suu.github.io/19718-lighthouse/games/othello.html)
 - [バグ水族館](https://sync-sun-suu.github.io/19718-lighthouse/games/aquarium.html)
