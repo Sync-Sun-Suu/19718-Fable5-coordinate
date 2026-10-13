@@ -17,8 +17,8 @@
   body{font-family:'Shippori Mincho','Hiragino Mincho ProN',serif;}
   canvas{display:block;width:100vw;height:100vh;}
   #ui{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:max(26px,env(safe-area-inset-top));color:#e8ecff;}
-  #time{font-family:'Space Mono',monospace;font-size:clamp(44px,11.5vw,104px);letter-spacing:.04em;line-height:1;text-shadow:0 2px 18px rgba(0,0,0,.3);transition:color 2s;font-variant-numeric:tabular-nums;}
-  #date{font-family:'Space Mono',monospace;font-size:clamp(16px,3.6vw,26px);letter-spacing:.14em;opacity:.9;margin-bottom:10px;transition:color 2s;}
+  #time{font-family:'Space Mono',monospace;font-size:clamp(44px,11.5vw,104px);letter-spacing:.04em;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.35),0 0 2px rgba(0,0,0,.25);transition:color 2s;font-variant-numeric:tabular-nums;}
+  #date{font-family:'Space Mono',monospace;font-size:clamp(16px,3.6vw,26px);letter-spacing:.14em;opacity:.95;margin-bottom:10px;text-shadow:0 1px 10px rgba(0,0,0,.35);transition:color 2s;}
   #note{position:fixed;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));text-align:center;font-size:12px;letter-spacing:.14em;color:#aab2d8;opacity:0;transition:opacity 1.5s;pointer-events:none;}
   #note.show{opacity:.95;}
 </style>
@@ -272,16 +272,21 @@ function frame(now){
   cx.strokeStyle='rgba(255,255,255,'+(0.10+0.15*day+0.08*night)+')';cx.lineWidth=1.2;
   for(let k=0;k<3;k++){const y0=seaY+24+k*22;cx.beginPath();for(let x=0;x<=W;x+=6){const y=y0+Math.sin(x*0.022+el*(1+k*.3)+k)*4;x===0?cx.moveTo(x,y):cx.lineTo(x,y);}cx.stroke();}
   // ちゃぽん
-  if(!jump&&now>nextJump){jump={t:now,x:0.2+Math.random()*0.6,dir:Math.random()<.5?1:-1};nextJump=now+60000;}
+  if(!jump&&now>nextJump){jump={t:now,x:0.2+Math.random()*0.6,dir:Math.random()<.5?1:-1,hue:Math.floor(Math.random()*360)};nextJump=now+60000;}
   if(jump){
     const k=(now-jump.t)/1400; // 1.4 秒
     if(k>=1){jump=null;}
     else{
       const fx=W*jump.x+jump.dir*k*S*0.08, fy=seaY+20-Math.sin(Math.PI*k)*S*0.07;
       cx.save();cx.translate(fx,fy);cx.rotate(jump.dir*(Math.PI/2*(k-0.5)));cx.scale(jump.dir,1);
-      cx.fillStyle=night>0.5?'rgba(200,210,240,.9)':'rgba(60,90,140,.9)';
+      // 虹色の魚。頭から尾へ色が流れる
+      const fg=cx.createLinearGradient(S*.02,0,-S*.03,0);
+      for(let i=0;i<=4;i++)fg.addColorStop(i/4,'hsl('+((jump.hue+i*40)%360)+',85%,'+(night>0.5?72:60)+'%)');
+      cx.fillStyle=fg;
       cx.beginPath();cx.ellipse(0,0,S*.018,S*.009,0,0,7);cx.fill();
       cx.beginPath();cx.moveTo(-S*.016,0);cx.lineTo(-S*.03,-S*.009);cx.lineTo(-S*.03,S*.009);cx.closePath();cx.fill();
+      cx.fillStyle='rgba(255,255,255,.85)';cx.beginPath();cx.arc(S*.009,-S*.002,S*.0022,0,7);cx.fill();
+      cx.fillStyle='rgba(255,255,255,.35)';cx.beginPath();cx.ellipse(S*.002,-S*.004,S*.009,S*.003,0,0,7);cx.fill();
       cx.restore();
       // しぶき
       if(k<0.25||k>0.75){const sx=k<0.25?W*jump.x:W*jump.x+jump.dir*S*0.08;const kk=k<0.25?k/0.25:(k-0.75)/0.25;
@@ -311,7 +316,7 @@ function frame(now){
   // 文字
   const hh=String(n.h).padStart(2,'0'),mm=String(n.m).padStart(2,'0'),ss=String(n.s).padStart(2,'0');
   timeEl.textContent=hh+':'+mm+':'+ss;
-  timeEl.style.color=rgb(sky.ink);dateEl.style.color=rgb(sky.ink);
+  timeEl.style.color='#ffffff';dateEl.style.color='rgba(255,255,255,.92)';
   dateEl.textContent=n.y+'-'+String(n.mo).padStart(2,'0')+'-'+String(n.d).padStart(2,'0');
   if(n.m!==lastMin){
     lastMin=n.m;
