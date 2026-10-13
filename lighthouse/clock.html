@@ -99,7 +99,7 @@ puffs.push({dx:-0.92,dy:-0.02,r:0.2});puffs.push({dx:-0.64,dy:-0.02,r:0.2});
 for(let i=0;i<10;i++){const a=i/10*Math.PI*2;puffs.push({dx:0.38+Math.cos(a)*0.4,dy:-0.86+Math.sin(a)*0.38,r:0.22});}
 puffs.push({dx:0.78,dy:-0.55,r:0.22});puffs.push({dx:0.78,dy:-0.32,r:0.22});puffs.push({dx:0.72,dy:-0.1,r:0.22});
 puffs.push({dx:0.55,dy:0.04,r:0.2});puffs.push({dx:0.32,dy:0.06,r:0.19});
-const clouds=[{x:0.5,y:0.52,s:1.9,puffs}];
+const clouds=[{x:0.5,y:0.62,s:1.2,puffs}];
 /* 海のきらきら */
 const glitter=Array.from({length:160},()=>({x:Math.random(),y:Math.random(),ph:Math.random()*6.28,sp:2+Math.random()*4}));
 /* 灯台の時刻の覚え書き */
@@ -139,7 +139,7 @@ function frame(now){
   const dayT=(n.t-6)/12.3;
   let sunX=null,sunY=null;
   if(dayT>0&&dayT<1){
-    sunX=W*(0.1+0.8*dayT); sunY=seaY*0.97-Math.sin(Math.PI*dayT)*seaY*0.75;
+    sunX=W*(0.1+0.8*dayT); sunY=seaY*0.97-Math.sin(Math.PI*dayT)*seaY*0.55;
     const low=1-Math.sin(Math.PI*dayT); // 低いほど大きく赤く
     const col=mix([255,250,230],[255,170,120],low);
     const sg=cx.createRadialGradient(sunX,sunY,0,sunX,sunY,S*(.14+.1*low));
