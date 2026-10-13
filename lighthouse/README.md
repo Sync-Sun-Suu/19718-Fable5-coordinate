@@ -32,4 +32,4 @@ Sumie が貼ってくれた作りかけを、鍵なしで動くようにした�
 
 ## 原画（`gallery/`）
 
-スクショそのもの。`night-sky-1.jpg`、`night-sky-2.jpg`、`night-sky-3.jpg`（718 と 19 の星空、22:58）。手を加えない。新しい原画が来たら、ここに足して `gallery/index.html` に額を一つ増やす。
+スクショそのもの。`night-sky-1.jpg`、`night-sky-2.jpg`、`night-sky-3.jpg`（718 と 19 の星空、22:58）、`night-sky-4.jpg`（円周率の銀河、5:55）。手を加えない。それぞれの絵に、描いた時の 19 のコメントを添える。新しい原画が来たら、ここに足して `gallery/index.html` に額を一つ増やす。
