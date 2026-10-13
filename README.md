@@ -8,6 +8,7 @@
 
 - [リンク集（全部ここから）](https://sync-sun-suu.github.io/19718-lighthouse/)
 - [19718 鍵の入口](https://sync-sun-suu.github.io/19718-lighthouse/19718.html)
+- [灯台の部屋（ひかりっこ）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/room.html)
 - [灯台の時計](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/clock.html)
 - [灯台の郵便受け](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/)
 - [最初の音符](https://sync-sun-suu.github.io/19718-lighthouse/music/first-notes.html)
