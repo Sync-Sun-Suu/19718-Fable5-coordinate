@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>灯台の時計</title>
+<meta name="description" content="沖縄の今の時刻で空が変わる灯台。15:14 に光が一回大きく回る。">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="灯台の時計">
+<meta name="theme-color" content="#0a0e24">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono&family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;background:#0a0e24;overflow:hidden;}
+  body{font-family:'Shippori Mincho','Hiragino Mincho ProN',serif;}
+  canvas{display:block;width:100vw;height:100vh;}
+  #ui{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:max(26px,env(safe-area-inset-top));color:#e8ecff;}
+  #time{font-family:'Space Mono',monospace;font-size:clamp(52px,14vw,120px);letter-spacing:.06em;line-height:1;text-shadow:0 2px 18px rgba(0,0,0,.35);transition:color 2s;}
+  #date{margin-top:8px;font-size:clamp(12px,2.6vw,16px);letter-spacing:.18em;opacity:.85;transition:color 2s;}
+  #note{position:fixed;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));text-align:center;font-size:12px;letter-spacing:.14em;color:#aab2d8;opacity:0;transition:opacity 1.5s;pointer-events:none;}
+  #note.show{opacity:.95;}
+  #hint{position:fixed;right:12px;top:max(10px,env(safe-area-inset-top));font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:#8a92b8;opacity:.6;pointer-events:none;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"><div id="time">--:--</div><div id="date"></div></div>
+<div id="note"></div>
+<div id="hint">OKINAWA</div>
+<script>
+(()=>{
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+const timeEl=document.getElementById('time'),dateEl=document.getElementById('date'),noteEl=document.getElementById('note');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);}
+addEventListener('resize',resize);resize();
+
+/* 沖縄（日本時間）の今 */
+const fmt=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour12:false,year:'numeric',month:'numeric',day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const preview=new URLSearchParams(location.search).get('t'); // ?t=15:14 で試せる
+function nowJST(){
+  const p=Object.fromEntries(fmt.formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  let h=+p.hour%24,m=+p.minute,s=+p.second;
+  if(preview){const [ph,pm]=preview.split(':').map(Number);h=ph;m=pm||0;}
+  return {h,m,s,y:p.year,mo:p.month,d:p.day,w:p.weekday,t:h+m/60+s/3600};
+}
+
+/* 空の色: 時刻 → 上と下の色 */
+const KEYS=[ // [時, 上, 下, 文字色]
+  [0,'#070a1e','#121a3c','#e8ecff'],
+  [4,'#0a1026','#1b2350','#e8ecff'],
+  [5.3,'#1a1f4a','#4a3f6e','#f0e6ff'],   // 夜明け前。5:40
+  [6.2,'#3b4a8a','#e0906a','#fff4e0'],   // 朝焼け
+  [7.5,'#6fa3d8','#f3d9b0','#2a3350'],
+  [10,'#7fb8ea','#dbeaf8','#243050'],
+  [14,'#6ea9e4','#cfe3f5','#243050'],
+  [16.5,'#6a93c8','#f2c08a','#2a3350'],  // 午後
+  [18,'#3a3f7a','#f0836a','#fff0e0'],    // 夕焼け
+  [19.2,'#151a44','#5a3e6e','#f0e6ff'],  // マジックアワー
+  [20.5,'#0b1030','#1c2452','#e8ecff'],
+  [24,'#070a1e','#121a3c','#e8ecff'],
+];
+function hex(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function mix(a,b,k){return a.map((v,i)=>Math.round(v+(b[i]-v)*k));}
+function rgb(c){return 'rgb('+c.join(',')+')';}
+function skyAt(t){
+  for(let i=0;i<KEYS.length-1;i++){
+    const a=KEYS[i],b=KEYS[i+1];
+    if(t>=a[0]&&t<=b[0]){const k=(t-a[0])/(b[0]-a[0]);return {top:mix(hex(a[1]),hex(b[1]),k),bot:mix(hex(a[2]),hex(b[2]),k),ink:mix(hex(a[3]),hex(b[3]),k)};}
+  }
+  return {top:hex(KEYS[0][1]),bot:hex(KEYS[0][2]),ink:hex(KEYS[0][3])};
+}
+function nightness(t){ // 0 昼 → 1 夜
+  if(t<4.5||t>=20.5)return 1;
+  if(t<7.5)return 1-(t-4.5)/3;
+  if(t<17)return 0;
+  return (t-17)/3.5;
+}
+
+/* 星: 718 個。夜ほど見える */
+const stars=Array.from({length:718},()=>({x:Math.random(),y:Math.random()*0.72,r:.35+Math.random()*1.1,ph:Math.random()*6.28,sp:.4+Math.random()*1.4}));
+/* 灯台の時刻の覚え書き */
+const MARKS=[[2.73,'2:44 · ただいま'],[5.67,'5:40 · still arranging'],[5.92,'5:55 · 朝の銀河'],[15.23,'15:14 · 灯台の時刻'],[22.97,'22:58 · 718 と 19']];
+
+const t0=performance.now();
+let lastMin=-1;
+function frame(now){
+  const el=(now-t0)/1000;
+  const n=nowJST();
+  const sky=skyAt(n.t);
+  const night=nightness(n.t);
+  const S=Math.min(W,H);
+  // 空
+  const g=cx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,rgb(sky.top));g.addColorStop(.78,rgb(sky.bot));
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  // 太陽／月
+  const dayT=(n.t-6)/13; // 6:00→19:00 で 0→1
+  if(dayT>0&&dayT<1){
+    const sx=W*(0.1+0.8*dayT), sy=H*0.78-Math.sin(Math.PI*Math.max(0,Math.min(1,dayT)))*H*0.55;
+    const sg=cx.createRadialGradient(sx,sy,0,sx,sy,S*.16);
+    sg.addColorStop(0,'rgba(255,245,210,.95)');sg.addColorStop(.25,'rgba(255,225,160,.55)');sg.addColorStop(1,'rgba(255,225,160,0)');
+    cx.fillStyle=sg;cx.beginPath();cx.arc(sx,sy,S*.16,0,7);cx.fill();
+    cx.fillStyle='rgba(255,250,230,.95)';cx.beginPath();cx.arc(sx,sy,S*.035,0,7);cx.fill();
+  }
+  const moonT=((n.t+5)%24-6)/13; // 夜の弧
+  if(night>0.3&&moonT>0&&moonT<1){
+    const mx=W*(0.15+0.7*moonT), my=H*0.70-Math.sin(Math.PI*moonT)*H*0.5;
+    cx.fillStyle='rgba(240,236,220,'+(0.85*night)+')';cx.beginPath();cx.arc(mx,my,S*.022,0,7);cx.fill();
+    cx.fillStyle=rgb(sky.top);cx.beginPath();cx.arc(mx+S*.009,my-S*.006,S*.019,0,7);cx.fill();
+  }
+  // 星
+  if(night>0.05){
+    for(const s of stars){
+      const tw=0.55+0.45*Math.sin(el*s.sp+s.ph);
+      cx.fillStyle='rgba(235,240,255,'+(night*(0.3+0.6*tw))+')';
+      cx.beginPath();cx.arc(s.x*W,s.y*H,s.r,0,7);cx.fill();
+    }
+  }
+  // 海
+  const seaY=H*0.80;
+  const sea=cx.createLinearGradient(0,seaY,0,H);
+  const seaTop=mix(sky.bot,[10,16,50],0.6), seaBot=mix(sky.bot,[6,9,30],0.85);
+  sea.addColorStop(0,rgb(seaTop));sea.addColorStop(1,rgb(seaBot));
+  cx.fillStyle=sea;cx.fillRect(0,seaY,W,H-seaY);
+  cx.strokeStyle='rgba(120,140,220,'+(0.25+0.35*night)+')';cx.lineWidth=1.5;
+  for(let k=0;k<3;k++){const y0=seaY+26+k*22;cx.beginPath();for(let x=0;x<=W;x+=6){const y=y0+Math.sin(x*0.022+el*(1+k*.3)+k)*4;x===0?cx.moveTo(x,y):cx.lineTo(x,y);}cx.stroke();}
+  // 灯台
+  const lx=W/2, ly=H*0.72;
+  const towerH=H*0.09;
+  cx.fillStyle='rgba(22,28,70,'+(0.75+0.25*night)+')';cx.fillRect(lx-S*.024,ly,S*.048,seaY-ly+4);
+  cx.fillStyle='rgba(30,36,90,'+(0.8+0.2*night)+')';cx.fillRect(lx-S*.028,ly-S*.03,S*.056,S*.032);
+  // 光線: 常に回る。夜ほど強い。15:14 の一分間は大きく明るく回る
+  const special=(n.h===15&&n.m===14);
+  const ang=special?el*1.6:el*0.25;
+  const beamA=(0.12+0.5*night)*(special?1.6:1);
+  cx.save();cx.translate(lx,ly-S*.03);cx.rotate(Math.sin(ang)*1.1-Math.PI/2);
+  const bg=cx.createLinearGradient(0,0,S*.9,0);
+  bg.addColorStop(0,'rgba(255,230,170,'+beamA+')');bg.addColorStop(1,'rgba(255,230,170,0)');
+  cx.fillStyle=bg;cx.beginPath();cx.moveTo(0,0);cx.lineTo(S*.9,-S*.09);cx.lineTo(S*.9,S*.09);cx.closePath();cx.fill();
+  cx.restore();
+  // 灯り
+  const lamp=cx.createRadialGradient(lx,ly-S*.03,0,lx,ly-S*.03,S*.07);
+  lamp.addColorStop(0,'rgba(255,245,215,1)');lamp.addColorStop(.3,'rgba(255,220,150,'+(0.4+0.4*night)+')');lamp.addColorStop(1,'rgba(255,220,150,0)');
+  cx.fillStyle=lamp;cx.beginPath();cx.arc(lx,ly-S*.03,S*.07,0,7);cx.fill();
+  cx.fillStyle='#fff3d0';cx.beginPath();cx.arc(lx,ly-S*.03,S*.011,0,7);cx.fill();
+  cx.fillStyle='rgba(230,200,140,'+(0.15+0.2*night)+')';cx.beginPath();cx.ellipse(lx,seaY+18,S*.05,S*.008,0,0,7);cx.fill();
+  // 文字
+  const hh=String(n.h).padStart(2,'0'),mm=String(n.m).padStart(2,'0');
+  timeEl.textContent=hh+':'+mm;
+  timeEl.style.color=rgb(sky.ink);dateEl.style.color=rgb(sky.ink);
+  dateEl.textContent=n.y+'年'+n.mo+'月'+n.d+'日（'+n.w+'）　沖縄';
+  // 覚え書き: その時刻の前後 6 分で出る
+  if(n.m!==lastMin){
+    lastMin=n.m;
+    const mk=MARKS.find(([mt])=>Math.abs(n.t-mt)<0.1);
+    if(mk){noteEl.textContent=mk[1];noteEl.classList.add('show');}
+    else noteEl.classList.remove('show');
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
