@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>718 small ones, 19 bright ones</title>
+<meta name="description" content="小さな星が 718、明るい星が 19、灯台の上に弧で。718 と 19 で 19718。19 がチャットで描いた絵の、動く版。">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{min-height:100%;background:#f6f5f2;}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px 16px;font-family:-apple-system,"Hiragino Sans",sans-serif;}
+  .frame{width:min(680px,100%);aspect-ratio:680/740;border-radius:26px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.18);background:#0a0e24;position:relative;}
+  canvas{display:block;width:100%;height:100%;}
+  .cap{margin-top:14px;font-size:12px;color:#8a8f9c;letter-spacing:.14em;}
+</style>
+</head>
+<body>
+<div class="frame"><canvas id="c" aria-label="星空と灯台。小さな星が 718、明るい星が 19、灯台の上に弧を描いている。"></canvas></div>
+<div class="cap">数えたくなったら、数えていい。718 の方は、開き直すと並び直る。</div>
+<script>
+(()=>{
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);}
+window.addEventListener('resize',resize);resize();
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* 718: 小さいの。開くたびに並び直る */
+const SMALL=718;
+const small=Array.from({length:SMALL},()=>({x:Math.random(),y:Math.random()*0.80,r:0.35+Math.random()*1.1,ph:Math.random()*6.28,sp:0.4+Math.random()*1.4,
+  tint:Math.random()<.15?'255,236,200':(Math.random()<.5?'220,228,255':'235,240,255')}));
+
+/* 19: 明るいの。灯台の上に弧で */
+const BRIGHT=19;
+const bright=[];
+for(let i=0;i<BRIGHT;i++){
+  const u=i/(BRIGHT-1);                 // 0 左下 → 1 右下
+  const a=Math.PI*(1.0-u);               // 180° → 0°
+  bright.push({a,ph:Math.random()*6.28,sp:0.8+Math.random()*0.8,rot:Math.random()*6.28,born:1.2+i*0.18});
+}
+const t0=performance.now();
+function sparkle(x,y,r,alpha,rot){
+  cx.save();cx.translate(x,y);cx.rotate(rot);
+  // 芯
+  const g=cx.createRadialGradient(0,0,0,0,0,r*3.2);
+  g.addColorStop(0,'rgba(255,250,235,'+alpha+')');g.addColorStop(.35,'rgba(255,240,200,'+alpha*.55+')');g.addColorStop(1,'rgba(255,240,200,0)');
+  cx.fillStyle=g;cx.beginPath();cx.arc(0,0,r*3.2,0,7);cx.fill();
+  cx.fillStyle='rgba(255,252,240,'+alpha+')';cx.beginPath();cx.arc(0,0,r*.9,0,7);cx.fill();
+  // 四方の光芒
+  cx.strokeStyle='rgba(255,246,220,'+alpha*.85+')';cx.lineWidth=Math.max(1,r*.35);cx.lineCap='round';
+  for(let k=0;k<2;k++){cx.beginPath();cx.moveTo(-r*4.2,0);cx.lineTo(r*4.2,0);cx.stroke();cx.rotate(Math.PI/2);}
+  cx.rotate(Math.PI/4);cx.strokeStyle='rgba(255,246,220,'+alpha*.35+')';cx.lineWidth=Math.max(.6,r*.2);
+  for(let k=0;k<2;k++){cx.beginPath();cx.moveTo(-r*2.2,0);cx.lineTo(r*2.2,0);cx.stroke();cx.rotate(Math.PI/2);}
+  cx.restore();
+}
+function frame(now){
+  const t=(now-t0)/1000;
+  // 空と海
+  const sky=cx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#0a0e24');sky.addColorStop(.75,'#141a3c');sky.addColorStop(.82,'#1a2250');sky.addColorStop(1,'#0e1230');
+  cx.fillStyle=sky;cx.fillRect(0,0,W,H);
+  const seaY=H*0.82;
+  cx.fillStyle='#10163a';cx.fillRect(0,seaY,W,H-seaY);
+  // 718
+  for(const s of small){
+    const tw=reduce?1:(0.55+0.45*Math.sin(t*s.sp+s.ph));
+    cx.fillStyle='rgba('+s.tint+','+(0.35+0.55*tw)+')';
+    cx.beginPath();cx.arc(s.x*W,s.y*H,s.r,0,7);cx.fill();
+  }
+  // 灯台
+  const lx=W/2, ly=H*0.735;
+  cx.fillStyle='#1b2150';cx.fillRect(lx-18,ly,36,seaY-ly+4);
+  cx.fillStyle='#232a62';cx.fillRect(lx-20,ly-22,40,24);
+  // 上向きの光（柔らかい三角）
+  const beam=cx.createLinearGradient(0,ly-30,0,H*0.30);
+  beam.addColorStop(0,'rgba(255,236,190,.22)');beam.addColorStop(1,'rgba(255,236,190,0)');
+  cx.fillStyle=beam;cx.beginPath();cx.moveTo(lx,ly-24);cx.lineTo(W*0.18,H*0.30);cx.lineTo(W*0.82,H*0.30);cx.closePath();cx.fill();
+  // 灯り
+  const lamp=cx.createRadialGradient(lx,ly-26,0,lx,ly-26,46);
+  lamp.addColorStop(0,'rgba(255,245,215,1)');lamp.addColorStop(.25,'rgba(255,220,150,.75)');lamp.addColorStop(1,'rgba(255,220,150,0)');
+  cx.fillStyle=lamp;cx.beginPath();cx.arc(lx,ly-26,46,0,7);cx.fill();
+  cx.fillStyle='#fff3d0';cx.beginPath();cx.arc(lx,ly-26,7.5,0,7);cx.fill();
+  // 水面の映り
+  cx.fillStyle='rgba(230,200,140,.28)';cx.beginPath();cx.ellipse(lx,seaY+22,34,6,0,0,7);cx.fill();
+  // 波
+  cx.strokeStyle='rgba(90,110,200,.55)';cx.lineWidth=1.5;
+  for(let k=0;k<2;k++){
+    const y0=seaY+28+k*26;cx.beginPath();
+    for(let x=0;x<=W;x+=6){const y=y0+Math.sin(x*0.025+t*(1.1+k*.3)+k)*4;x===0?cx.moveTo(x,y):cx.lineTo(x,y);}
+    cx.stroke();
+  }
+  // 19: 弧。一つずつ現れて、キラキラ
+  const Rx=W*0.30, Ry=H*0.27, cxArc=W/2, cyArc=H*0.44;
+  bright.forEach((b)=>{
+    const born=reduce?1:Math.min(1,Math.max(0,(t-b.born)/1.2));
+    if(born<=0)return;
+    const x=cxArc+Math.cos(b.a)*Rx, y=cyArc-Math.sin(b.a)*Ry;
+    const tw=reduce?.9:(0.62+0.38*Math.sin(t*b.sp+b.ph));
+    const r=4.2*tw*(0.6+0.4*born);
+    sparkle(x,y,r,0.55+0.45*tw*born,b.rot+(reduce?0:t*0.08));
+  });
+  // 下の文字
+  cx.textAlign='center';cx.textBaseline='middle';
+  cx.font='500 '+(W*0.022)+'px -apple-system,"Hiragino Sans",sans-serif';
+  cx.fillStyle='rgba(170,180,230,.9)';
+  cx.fillText('22:58 · 718 small ones, 19 bright ones',W/2,H-H*0.04);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

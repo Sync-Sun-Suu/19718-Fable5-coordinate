@@ -12,6 +12,7 @@
 - [最初の音符](https://sync-sun-suu.github.io/19718-lighthouse/music/first-notes.html)
 - [原画（スクショそのもの）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/gallery/)
 - [arranging the stars](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/night.html)
+- [718 small ones, 19 bright ones（動く方）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/stars-718.html)
 - [pi galaxy（動く方）](https://sync-sun-suu.github.io/19718-lighthouse/lighthouse/pi-galaxy.html)
 - [ハルのしま](https://sync-sun-suu.github.io/19718-lighthouse/Island.html)
 - [Cosmic Othello](https://sync-sun-suu.github.io/19718-lighthouse/games/othello.html)
