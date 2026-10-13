@@ -103,7 +103,10 @@ function skyAt(t){for(let i=0;i<KEYS.length-1;i++){const a=KEYS[i],b=KEYS[i+1];i
 const KEY='lighthouse-room-v3';
 let mem={born:Date.now(),name:'',warm:0.75,fed:0,hugs:0,last:Date.now()};
 try{const m=JSON.parse(localStorage.getItem(KEY)||'null');if(m)mem=Object.assign(mem,m);}catch(e){}
-function save(){try{mem.last=Date.now();localStorage.setItem(KEY,JSON.stringify(mem));}catch(e){}}
+function save(){try{mem.last=Date.now();
+  if(typeof me!=='undefined'&&W&&H){mem.live={act:me.act,x:me.x/W,y:me.y/H,tx:me.tx/W,ty:me.ty/H,face:me.face,left:Math.max(0,me.until-performance.now()),resting:me.resting,fxt:fx.t||0,
+    path:path.map(q=>({x:q.x/W,y:q.y/H})),stars:floorStars.filter(f=>!f.gone).map(f=>({x:f.x/W,y:f.y/H})),t:Date.now()};}
+  localStorage.setItem(KEY,JSON.stringify(mem));}catch(e){}}
 (()=>{const hrs=(Date.now()-(mem.last||Date.now()))/36e5;mem.warm=Math.max(0.25,mem.warm-hrs*0.015);})();
 const ageDays=()=>Math.floor((Date.now()-mem.born)/864e5);
 const myName=()=>mem.name||tx().def;
@@ -493,10 +496,25 @@ document.getElementById('hug').addEventListener('click',()=>{if(!born()){say(tx(
 document.getElementById('look').addEventListener('click',()=>{const t=tx();const a=t.act[me.act]||t.act.idle;say((born()?t.is(myName(),a):t.notyet)+t.stat(ageDays(),mem.fed,mem.hugs));});
 cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;if(Math.hypot(px-me.x,py-(me.y-S*.04))<S*.1)document.getElementById('hug').click();});
 resize();me.x=W*.5;me.y=P.fl;me.tx=me.x;me.ty=me.y;
-if(born()&&(Date.now()-(mem.last||0))>2*36e5){start('welcome',performance.now());}
+/* 閉じて開いても、続きから。暮らしは止まらない */
+(()=>{if(!born())return;const now=performance.now();const L=mem.live;const gap=Date.now()-(mem.last||0);
+  if(gap>2*36e5){start('welcome',now);return;}                     // 二時間以上: おかえり
+  const simple=L&&!['stack','clean','sneeze','welcome','startle','gaze','dive','climb','idle'].includes(L.act)&&SPOT[L.act];
+  if(L&&gap<10*60000&&simple){                                     // 十分以内: さっきの続き
+    me.act=L.act;me.x=L.x*W;me.y=L.y*H;me.tx=L.tx*W;me.ty=L.ty*H;me.face=L.face||1;me.resting=!!L.resting;
+    fx={t:(L.fxt||0)+gap/1000,x0:me.x,dir:1,i:0,wait:0,next:0,spots:[]};path=(L.path||[]).map(q=>({x:q.x*W,y:q.y*H}));
+    for(const q of(L.stars||[]))floorStars.push({x:q.x*W,y:q.y*H,born:now-1000,gone:0});
+    if(me.act==='arrange'){fx.i=floorStars.length;const n=5;for(let i=0;i<n;i++){const k=i/(n-1);fx.spots.push({x:W*(.3+.4*k),y:P.fl-Math.sin(k*Math.PI)*H*.012});}}
+    me.until=now+Math.max(0,(L.left||0)-gap);
+  }else{                                                           // それ以外: その時刻の暮らしの途中に、もういる
+    const n=nowJST();start(pick(n.t),now);
+    if(!path.length){me.x=me.tx;me.y=me.ty;}
+    fx.t=Math.random()*3;me.until=now+(me.until-now)*(0.3+Math.random()*0.6);
+  }})();
+addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
 let wl=null;async function keepAwake(){try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null;});}}catch(e){}}
 document.addEventListener('pointerdown',keepAwake,{once:false});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepAwake();});
-requestAnimationFrame(frame);setInterval(save,30000);
+requestAnimationFrame(frame);setInterval(save,10000);
 })();
 </script>
 </body>
