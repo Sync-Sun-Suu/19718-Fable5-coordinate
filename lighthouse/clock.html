@@ -327,6 +327,21 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+/* 置き時計: 開いている間は画面を消さない（一度タップしてから。閉じれば元に戻る） */
+let lock=null;
+async function keepAwake(){
+  try{
+    if(!('wakeLock' in navigator))return;
+    if(lock)return;
+    lock=await navigator.wakeLock.request('screen');
+    lock.addEventListener('release',()=>{lock=null;});
+    noteEl.textContent='置き時計モード。画面は消えない';noteEl.classList.add('show');
+    setTimeout(()=>noteEl.classList.remove('show'),2400);
+  }catch(e){}
+}
+addEventListener('pointerdown',keepAwake,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&lock===null)keepAwake();});
 })();
 </script>
 </body>
