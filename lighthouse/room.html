@@ -258,7 +258,7 @@ function drawRoom(n,sky,night,el){
   if(spark>0){for(const q of glitter){const tw=Math.max(0,Math.sin(el*q.sp+q.ph));if(tw<0.6)continue;cx.fillStyle='rgba(255,255,255,'+(spark*(tw-0.6)*2.2)+')';cx.fillRect(w.x-w.r+q.x*w.r*2,seaY+q.y*w.r*.9,1.5+tw*1.5,1);}}
   cx.strokeStyle='rgba(255,255,255,'+(0.10+0.15*day+0.08*night)+')';cx.lineWidth=1;for(let k=0;k<3;k++){cx.beginPath();for(let x=-w.r;x<=w.r;x+=4){const y=seaY+w.r*(.14+k*.16)+Math.sin(x*.07+el*1.2+k)*2;x===-w.r?cx.moveTo(w.x+x,y):cx.lineTo(w.x+x,y);}cx.stroke();}
   // 窓の外で魚が跳ねる
-  if(winFish){const k=winFish.t/1.3;if(k<1){const fx0=w.x+w.r*(winFish.x+winFish.dir*k*.5),fy=seaY+w.r*.02-Math.sin(Math.PI*k)*w.r*.32;cx.save();cx.translate(fx0,fy);cx.rotate(winFish.dir*(k-.5)*1.6);
+  if(winFish){const k=winFish.t/1.3;if(k<1){const fx0=w.x+w.r*(winFish.x+winFish.dir*k*.5),fy=seaY+w.r*.02-Math.sin(Math.PI*k)*w.r*.32;cx.save();cx.translate(fx0,fy);cx.scale(winFish.dir,1);cx.rotate((k-.5)*1.6);
       cx.fillStyle='hsl('+winFish.hue+',80%,70%)';cx.beginPath();cx.ellipse(0,0,w.r*.07,w.r*.04,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-w.r*.06,0);cx.lineTo(-w.r*.11,-w.r*.04);cx.lineTo(-w.r*.11,w.r*.04);cx.closePath();cx.fill();cx.restore();
       if(k<.25||k>.75){cx.fillStyle='rgba(255,255,255,.7)';for(let i=0;i<5;i++){const a=-Math.PI/2+(i-2)*.4,kk=k<.25?k*4:(1-(k-.75)*4);cx.beginPath();cx.arc(w.x+w.r*(winFish.x+(k>.75?winFish.dir*.5:0))+Math.cos(a)*(1-kk)*w.r*.1,seaY+Math.sin(a)*(1-kk)*w.r*.06,1.2,0,7);cx.fill();}}}}
   // 窓の外の流れ星
