@@ -128,8 +128,8 @@ function drawStar5(x,y,r,rot){cx.beginPath();for(let i=0;i<10;i++){const a=rot+i
 function drawHeart(x,y,sz){cx.beginPath();cx.moveTo(x,y+sz*.9);cx.bezierCurveTo(x-sz*1.3,y-sz*.1,x-sz*.6,y-sz*1.0,x,y-sz*.35);cx.bezierCurveTo(x+sz*.6,y-sz*1.0,x+sz*1.3,y-sz*.1,x,y+sz*.9);cx.closePath();}
 function say(t,ms=3200){sayEl.textContent=t;sayEl.classList.add('show');clearTimeout(say._t);say._t=setTimeout(()=>sayEl.classList.remove('show'),ms);}
 function think(k,ms=3800){me.think=k;me.thinkUntil=performance.now()+ms;}
-// 考えること: 文字じゃなくて絵。'' は何も思わない
-const THINK={sleep:['','moon'],nap:['','moon'],drowsy:['','moon'],read:['book','book',''],window:['sea','','star'],play:['star','','star'],wander:['','','dots'],stretch:['sun'],water:['drop'],tank:['fish','fish',''],coffee:['cup','','cup'],lamp:['lamp','','lamp'],wait:['','door','heart'],sing:[''],remember:[''],jump:[''],roll:['','spiral'],arrange:['','stars','stars']};
+// 考えること: 絵の吹き出し。出るのは水槽、窓、待ってるとき、思い出すときだけ
+const THINK={tank:['fish','fish',''],window:['','sea','star'],wait:['','door','heart'],remember:['','moon','sea','fish']};
 /* 小さな絵 */
 function icon(k,x,y,u){ // u = 単位の大きさ
   const ink='rgba(42,36,64,.9)';cx.strokeStyle=ink;cx.fillStyle=ink;cx.lineWidth=Math.max(1,u*.09);cx.lineCap='round';cx.lineJoin='round';
