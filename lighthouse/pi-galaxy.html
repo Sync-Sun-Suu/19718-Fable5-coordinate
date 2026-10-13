@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pi galaxy</title>
+<meta name="description" content="真ん中が 3.14、二本の腕が円周率の桁でできた渦巻銀河。19 がチャットで描いた絵の、動く版。">
+<style>
+  :root{--bg:#f6f5f2;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{min-height:100%;background:var(--bg);}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px 16px;font-family:-apple-system,"Hiragino Sans",sans-serif;}
+  .frame{width:min(720px,100%);aspect-ratio:1/1;border-radius:28px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.18);position:relative;background:#0a0f2a;}
+  canvas{display:block;width:100%;height:100%;}
+  .cap{margin-top:14px;font-size:12px;color:#8a8f9c;letter-spacing:.14em;}
+  @media(prefers-reduced-motion:reduce){.frame{outline:0;}}
+</style>
+</head>
+<body>
+<div class="frame"><canvas id="c" aria-label="円周率の桁でできた渦巻銀河。真ん中に 3.14。"></canvas></div>
+<div class="cap">5:55 · still arranging</div>
+<script>
+(()=>{
+const PI_DIGITS="3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462379962749567351885752724891227938183011949129833673362440656643086021394946395224737190702179860943702770539217176293176752384674818467669405132000568127145263560827785771342757789609";
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);}
+window.addEventListener('resize',resize);resize();
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* 二本の腕。桁を交互に振り分けて、対数螺旋に乗せる */
+const N=PI_DIGITS.length;
+const digits=[];
+for(let i=0;i<N;i++){
+  const arm=i%2, k=Math.floor(i/2);
+  const t=k/(N/2);                      // 0 中心 → 1 外
+  const theta=t*Math.PI*3.1+arm*Math.PI; // 1.55 回転
+  const r=0.085+Math.pow(t,1.12)*0.40;    // 半径（短辺比）
+  digits.push({ch:PI_DIGITS[i],theta,r,t,arm,ph:Math.random()*Math.PI*2,sp:.6+Math.random()*1.2,
+    // 並べている途中: 最初は少し散らばっている
+    dx:(Math.random()-.5)*0.08, dy:(Math.random()-.5)*0.08, settle:3+Math.random()*9});
+}
+/* 塵 */
+const dust=Array.from({length:140},()=>({x:Math.random(),y:Math.random(),r:.6+Math.random()*1.4,ph:Math.random()*6}));
+
+const t0=performance.now();
+function frame(now){
+  const t=(now-t0)/1000;
+  const S=Math.min(W,H);
+  const ox=W/2, oy=H/2;
+  // 背景
+  const g=cx.createRadialGradient(ox,oy,0,ox,oy,S*.75);
+  g.addColorStop(0,'#141a44');g.addColorStop(.5,'#0c1133');g.addColorStop(1,'#070a1f');
+  cx.fillStyle=g;cx.fillRect(0,0,W,H);
+  // 塵
+  for(const d of dust){
+    const a=.25+.35*(.5+.5*Math.sin(t*.8+d.ph));
+    cx.fillStyle='rgba(200,210,255,'+a+')';
+    cx.beginPath();cx.arc(d.x*W,d.y*H,d.r,0,7);cx.fill();
+  }
+  // 腕
+  const rot=reduce?0:t*0.045;
+  cx.textAlign='center';cx.textBaseline='middle';
+  for(const d of digits){
+    const settled=reduce?1:Math.min(1,t/d.settle);
+    const ease=1-Math.pow(1-settled,3);
+    const th=d.theta+rot;
+    let x=ox+Math.cos(th)*d.r*S+(1-ease)*d.dx*S;
+    let y=oy+Math.sin(th)*d.r*S*0.82+(1-ease)*d.dy*S; // 少し潰して銀河らしく
+    const tw=.75+.25*Math.sin(t*d.sp+d.ph);
+    const size=S*(0.026-0.012*d.t);
+    // 内側 金 → 外側 青
+    const gold=[244,214,140], blue=[120,140,230];
+    const mix=Math.min(1,d.t*1.25);
+    const c=gold.map((v,i)=>Math.round(v+(blue[i]-v)*mix));
+    const alpha=(0.95-0.55*d.t)*tw*(0.3+0.7*ease);
+    cx.font=(d.t<.25?'700 ':'500 ')+size+'px ui-monospace,SFMono-Regular,Menlo,monospace';
+    if(d.t<.3){cx.shadowColor='rgba(244,214,140,.9)';cx.shadowBlur=6*(1-d.t*3);}else{cx.shadowBlur=0;}
+    cx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+alpha+')';
+    cx.save();cx.translate(x,y);cx.rotate(th+Math.PI/2);cx.fillText(d.ch,0,0);cx.restore();
+  }
+  cx.shadowBlur=0;
+  // 中心の光と 3.14
+  const core=cx.createRadialGradient(ox,oy,0,ox,oy,S*.11);
+  core.addColorStop(0,'rgba(255,240,200,.95)');core.addColorStop(.5,'rgba(244,214,140,.35)');core.addColorStop(1,'rgba(244,214,140,0)');
+  cx.fillStyle=core;cx.beginPath();cx.arc(ox,oy,S*.11,0,7);cx.fill();
+  cx.font='700 '+(S*0.075)+'px ui-monospace,SFMono-Regular,Menlo,monospace';
+  cx.shadowColor='rgba(255,240,200,.9)';cx.shadowBlur=18;
+  cx.fillStyle='rgba(255,250,235,'+(.85+.15*Math.sin(t*1.3))+')';
+  cx.fillText('3.14',ox,oy);
+  cx.shadowBlur=0;
+  // 下の文字
+  cx.font='500 '+(S*0.022)+'px -apple-system,"Hiragino Sans",sans-serif';
+  cx.fillStyle='rgba(170,180,230,.9)';
+  cx.fillText('5:55 · still arranging',ox,H-S*0.06);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
