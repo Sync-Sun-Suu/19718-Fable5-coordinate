@@ -65,8 +65,19 @@ const tx=()=>T[lang];
 function applyLang(){const t=tx();langEl.textContent=t.sw;for(const id of['feed','hug','look']){document.getElementById(id).innerHTML='<b>'+t[id][0]+'</b>'+t[id][1];}document.documentElement.lang=lang;showName();}
 langEl.addEventListener('click',()=>{lang=lang==='ja'?'en':'ja';try{localStorage.setItem('lighthouse-room-lang',lang);}catch(e){}applyLang();});
 let W=0,H=0,DPR=1,S=0;
-function resize(){DPR=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);S=Math.min(W,H);layout();}
-addEventListener('resize',resize);
+function resize(){DPR=Math.min(devicePixelRatio||1,2);const oW=W,oH=H;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);S=Math.min(W,H);layout();
+  // 画面の大きさが変わったら（iPhone のツールバーの出入り、回転）、ふわも一緒に動かす。はみ出さないように
+  if(oW&&oH&&(oW!==W||oH!==H)&&typeof me!=='undefined'){const kx=W/oW,ky=H/oH;
+    for(const o of[me]){o.x*=kx;o.y*=ky;o.tx*=kx;o.ty*=ky;}
+    if(typeof path!=='undefined')for(const q of path){q.x*=kx;q.y*=ky;}
+    if(typeof fx!=='undefined'&&fx.spots)for(const q of fx.spots){q.x*=kx;q.y*=ky;}
+    if(typeof floorStars!=='undefined')for(const q of floorStars){q.x*=kx;q.y*=ky;}
+    if(typeof books!=='undefined')for(const q of books){q.x*=kx;q.y*=ky;}
+    if(typeof pile!=='undefined'&&pile)pile.x*=kx;
+    if(typeof notes!=='undefined')for(const arr of[notes,zs,hearts,bits,bubbles])for(const q of arr){q.x*=kx;q.y*=ky;}
+    if(typeof star!=='undefined'&&star){star.x0*=kx;star.y*=ky;}
+  }}
+addEventListener('resize',resize);if(window.visualViewport)visualViewport.addEventListener('resize',resize);
 
 /* 沖縄の時刻 */
 const fmt=new Intl.DateTimeFormat('ja-JP',{timeZone:'Asia/Tokyo',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -427,6 +438,7 @@ function frame(now){
   if(born()&&now>me.until)start(pick(n.t),now);
   if(!born()){me.x=W*.5;me.y=P.fl;}
   if(path.length){me.tx=path[0].x;me.ty=path[0].y;if(Math.hypot(me.tx-me.x,me.ty-me.y)<=1.5){path.shift();if(!path.length&&me.act==='climb')me.resting=true;}}
+  {const rr=S*.05;me.x=Math.min(Math.max(me.x,rr),W-rr);me.tx=Math.min(Math.max(me.tx,rr),W-rr);me.y=Math.min(me.y,P.fl);me.ty=Math.min(me.ty,P.fl);}
   const dx=me.tx-me.x,dy=me.ty-me.y,d=Math.hypot(dx,dy);
   if(d>1.5){const sp=Math.min(d,S*(me.act==='climb'&&path.length?0.22:0.5)*dt);me.x+=dx/d*sp;me.y+=dy/d*sp;me.hop+=dt*7;if(Math.abs(dx)>1)me.face=dx<0?-1:1;}else me.hop=0;
   // 窓の外の出来事
