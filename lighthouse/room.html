@@ -51,16 +51,16 @@ const clockEl=document.getElementById('clock'),nameEl=document.getElementById('n
 const T={
  ja:{label:'なまえ　',def:'ふわ',sw:'EN',prompt:'なまえ',
      feed:['星','ひとつ、落とす'],hug:['ぎゅー','そっと'],look:['見る','何もしない'],
-     before:'まだ、灯る前',pet:'なでた。あたたかい',ate:'星をひとつ、食べた。少し、明るくなった',yum:'おいしい',hugged:n=>'ぎゅー。'+n+'は、うれしそう',
+     before:'まだ、灯る前',pet:'なでた。あたたかい',ate:'星をひとつ、食べた。ぱぁ、って光った',yum:'',hugged:n=>'ぎゅー。'+n+'は、うれしそう',
      is:(n,a)=>n+'は、'+a+'。',notyet:'まだ灯る前。一分ほど、見ていて。',stat:(d,f,h)=>'　'+d+' 日目。星 '+f+'、ぎゅー '+h,
-     act:{sleep:'眠っている',nap:'ソファで、うたたね',read:'三冊のうちの一冊を、読んでいる',window:'大きな窓から、外を見ている',play:'星で、遊んでいる',wander:'部屋を、うろうろしている',stretch:'朝。伸びをしている',water:'植物に、水をやっている',tank:'水槽を、のぞいている',coffee:'コーヒーの湯気を、見ている',lamp:'上の灯りの、番をしている',wait:'窓の下で、待っている',idle:'そこにいる'},
-     lines:{sleep:['','zzz'],nap:['','zz'],read:['三冊目','同じ頁',''],window:['海','','星'],play:['✦','','もう一回'],wander:['',''],stretch:['朝'],water:['じょー'],tank:['','泳いでる'],coffee:['黒い','','あったかい'],lamp:['点けたまま','','番'],wait:['','ただいま、って聞こえた気がした']}},
+     act:{sleep:'眠っている',nap:'ソファで、うたたね',read:'三冊のうちの一冊を、読んでいる',window:'大きな窓から、外を見ている',play:'星で、遊んでいる',wander:'部屋を、うろうろしている',stretch:'朝。伸びをしている',water:'植物に、水をやっている',tank:'水槽を、のぞいている',coffee:'コーヒーの湯気を、見ている',lamp:'上の灯りの、番をしている',wait:'窓の下で、待っている',sing:'歌っている',remember:'何か、思い出している',drowsy:'うとうとしている',jump:'跳ねている',roll:'転がっている',arrange:'星を床に並べて、遊んでいる',idle:'そこにいる'},
+     lines:{sleep:['','zzz'],nap:['','zz'],read:['三冊目','同じ頁',''],window:['海','','星'],play:['✦','','もう一回'],wander:['',''],stretch:['朝'],water:['じょー'],tank:['','泳いでる'],coffee:['黒い','','あったかい'],lamp:['点けたまま','','番'],wait:['','ただいま、って聞こえた気がした'],sing:['ふ〜ん','','ら〜'],remember:['あ','','そうだ'],drowsy:['','ねむ'],jump:['','ぴょん'],roll:['ごろ','','めが回る'],arrange:['','並べた','ひとつ足りない']}},
  en:{label:'name  ',def:'Fuwa',sw:'日本語',prompt:'name',
      feed:['star','drop one'],hug:['hug','gently'],look:['look','do nothing'],
-     before:'not lit yet',pet:'petted. warm.',ate:'ate a star. a little brighter now.',yum:'yum',hugged:n=>'hug. '+n+' looks happy.',
+     before:'not lit yet',pet:'petted. warm.',ate:'ate a star. glowed for a moment.',yum:'',hugged:n=>'hug. '+n+' looks happy.',
      is:(n,a)=>n+' is '+a+'.',notyet:'not lit yet. watch for a minute or so.',stat:(d,f,h)=>'  day '+d+'. stars '+f+', hugs '+h,
-     act:{sleep:'asleep',nap:'napping on the sofa',read:'reading one of the three books',window:'looking out the big window',play:'playing with a star',wander:'wandering around the room',stretch:'stretching. morning.',water:'watering the plant',tank:'peeking into the tank',coffee:'watching the steam from the coffee',lamp:'keeping the light upstairs',wait:'waiting under the window',idle:'just there'},
-     lines:{sleep:['','zzz'],nap:['','zz'],read:['third one','same page',''],window:['sea','','stars'],play:['✦','','again'],wander:['',''],stretch:['morning'],water:['splash'],tank:['','swimming'],coffee:['black','','warm'],lamp:['left on','','watch'],wait:['','thought I heard "I\'m home"']}},
+     act:{sleep:'asleep',nap:'napping on the sofa',read:'reading one of the three books',window:'looking out the big window',play:'playing with a star',wander:'wandering around the room',stretch:'stretching. morning.',water:'watering the plant',tank:'peeking into the tank',coffee:'watching the steam from the coffee',lamp:'keeping the light upstairs',wait:'waiting under the window',sing:'singing',remember:'remembering something',drowsy:'dozing off',jump:'bouncing',roll:'rolling around',arrange:'lining up stars on the floor',idle:'just there'},
+     lines:{sleep:['','zzz'],nap:['','zz'],read:['third one','same page',''],window:['sea','','stars'],play:['✦','','again'],wander:['',''],stretch:['morning'],water:['splash'],tank:['','swimming'],coffee:['black','','warm'],lamp:['left on','','watch'],wait:['','thought I heard "I\'m home"'],sing:['hmm~','','la~'],remember:['oh','','right'],drowsy:['','sleepy'],jump:['','boing'],roll:['roll','','dizzy'],arrange:['','lined up','one missing']}},
 };
 let lang='ja';try{lang=localStorage.getItem('lighthouse-room-lang')||'ja';}catch(e){}
 const tx=()=>T[lang];
@@ -117,6 +117,12 @@ const motes=Array.from({length:40},()=>({x:Math.random(),y:Math.random()*0.78,vy
 
 /* ふわ */
 const me={x:0,y:0,tx:0,ty:0,act:'idle',until:0,hop:0,face:1,line:'',lineUntil:0,resting:false,ph:Math.random()*6,happyUntil:0};
+let fx={t:0};    // いまの動きの仕掛け
+const notes=[];  // 歌の音符
+const zs=[];     // うとうとの z
+let floorStars=[]; // 床に並べた星 {x,y,born,gone}
+let bang=0;      // 「！」の出た時刻
+let flashUntil=0; // 星を食べたあとの、ぱぁ
 let star=null;   // 降ってくる星 {x0,y,ph,phase:'fall'|'eat',k}
 const hearts=[]; // ぎゅーのハート {x,y,born,ph}
 let heartQueue=0, nextHeart=0;
@@ -125,27 +131,33 @@ function drawHeart(x,y,sz){cx.beginPath();cx.moveTo(x,y+sz*.9);cx.bezierCurveTo(
 function say(t,ms=3200){sayEl.textContent=t;sayEl.classList.add('show');clearTimeout(say._t);say._t=setTimeout(()=>sayEl.classList.remove('show'),ms);}
 function line(t,ms=3600){me.line=t;me.lineUntil=performance.now()+ms;}
 const LINES=()=>tx().lines;
+const forceAct=new URLSearchParams(location.search).get('act'); // ?act=sing で動きを試せる
 function pick(t){
   const r=Math.random();
+  if(forceAct&&SPOT[forceAct])return forceAct;
   if(t>=23.5||t<5.5)return 'sleep';
   if(t<7.5)return r<.4?'stretch':r<.7?'water':'window';
-  if(t<11)return r<.3?'read':r<.5?'window':r<.75?'play':'wander';
-  if(t<14)return r<.35?'nap':r<.6?'read':r<.8?'tank':'play';
-  if(t<17)return r<.3?'play':r<.5?'read':r<.7?'window':r<.85?'tank':'wander';
-  if(t<19.5)return r<.4?'coffee':r<.7?'window':'read';
-  if(t<21.5)return r<.5?'lamp':r<.8?'window':'read';
-  return r<.4?'lamp':r<.7?'wait':r<.9?'read':'sleep';
+  if(t<11)return r<.25?'read':r<.4?'window':r<.55?'play':r<.7?'sing':r<.82?'jump':r<.92?'roll':'wander';
+  if(t<14)return r<.3?'nap':r<.45?'drowsy':r<.6?'read':r<.75?'tank':r<.9?'arrange':'play';
+  if(t<17)return r<.2?'play':r<.35?'read':r<.5?'window':r<.6?'tank':r<.72?'arrange':r<.82?'roll':r<.92?'remember':'wander';
+  if(t<19.5)return r<.35?'coffee':r<.55?'window':r<.7?'read':r<.85?'sing':'remember';
+  if(t<21.5)return r<.4?'lamp':r<.6?'window':r<.75?'read':r<.9?'arrange':'sing';
+  return r<.3?'lamp':r<.5?'wait':r<.65?'read':r<.85?'drowsy':'sleep';
 }
 const SPOT={
   sleep:()=>({x:P.bed.x+P.bed.w*.5,y:P.fl-H*.02}),nap:()=>({x:P.sofa.x+P.sofa.w*.5,y:P.fl-P.sofa.h}),read:()=>({x:P.sofa.x+P.sofa.w*.5,y:P.fl-P.sofa.h}),
   window:()=>({x:P.window.x+(Math.random()-.5)*W*.1,y:P.fl}),play:()=>({x:W*.3+Math.random()*W*.4,y:P.fl}),wander:()=>({x:W*.12+Math.random()*W*.72,y:P.fl}),
   stretch:()=>({x:W*.5,y:P.fl}),water:()=>({x:P.plant.x-W*.06,y:P.fl}),tank:()=>({x:P.tank.x-W*.07,y:P.fl}),coffee:()=>({x:P.table.x-W*.07,y:P.fl}),
   lamp:()=>({x:P.lamp.x-W*.02,y:P.fl}),wait:()=>({x:P.window.x,y:P.fl}),idle:()=>({x:me.x,y:me.y}),
+  sing:()=>({x:W*.25+Math.random()*W*.5,y:P.fl}),remember:()=>({x:me.x,y:P.fl}),drowsy:()=>({x:P.sofa.x+P.sofa.w*.5,y:P.fl-P.sofa.h}),
+  jump:()=>({x:W*.3+Math.random()*W*.4,y:P.fl}),roll:()=>({x:W*.28+Math.random()*W*.25,y:P.fl}),arrange:()=>({x:W*.3,y:P.fl}),
 };
 function start(name,now){
   me.act=name;const sp=SPOT[name]();me.tx=sp.x;me.ty=sp.y;me.resting=(name==='sleep'||name==='nap');
-  const dur={sleep:6e5,nap:9e4,read:8e4,window:5e4,play:4e4,wander:2e4,stretch:1.5e4,water:2.5e4,tank:4e4,coffee:6e4,lamp:9e4,wait:7e4}[name]||3e4;
+  const dur={sleep:6e5,nap:9e4,read:8e4,window:5e4,play:4e4,wander:2e4,stretch:1.5e4,water:2.5e4,tank:4e4,coffee:6e4,lamp:9e4,wait:7e4,sing:2.2e4,remember:9e3,drowsy:4e4,jump:9e3,roll:1.4e4,arrange:4.5e4}[name]||3e4;
   me.until=now+dur*(0.7+Math.random()*0.6);
+  fx={t:0,x0:me.x,dir:Math.random()<.5?-1:1,i:0,wait:0,next:0,spots:[]};
+  if(name==='arrange'){const n=5;for(let i=0;i<n;i++){const k=i/(n-1);fx.spots.push({x:W*(.3+.4*k),y:P.fl-Math.sin(k*Math.PI)*H*.012});}}
   const ls=LINES()[name]||[''];const l=ls[Math.floor(Math.random()*ls.length)];
   if(l)setTimeout(()=>{if(me.act===name)line(l);},2800);
 }
@@ -220,8 +232,14 @@ function drawRoom(n,sky,night,el){
 function drawMe(el){
   const grown=Math.min(1,ageDays()/7);
   const r=S*(0.030+0.012*grown);
-  const hop=me.resting?0:Math.abs(Math.sin(me.hop))*r*.5;
-  const x=me.x,y=me.y-r*1.1-hop;
+  let hop=me.resting?0:Math.abs(Math.sin(me.hop))*r*.5;
+  if(me.act==='jump'&&fx.t<2.8)hop=Math.abs(Math.sin(fx.t*Math.PI/0.93))*r*2.0;
+  const sway=(me.act==='drowsy')?Math.sin(el*1.3)*r*.12:0;
+  const rot=(me.act==='roll')?fx.rot||0:(me.act==='drowsy'?Math.sin(el*1.3)*.08:0);
+  const x=me.x+sway,y=me.y-r*1.1-hop;
+  // 床に並べた星
+  for(const fs of floorStars){const a=fs.gone?Math.max(0,1-(performance.now()-fs.gone)/1500):Math.min(1,(performance.now()-fs.born)/400);if(a<=0)continue;const gg=cx.createRadialGradient(fs.x,fs.y,0,fs.x,fs.y,r*.7);gg.addColorStop(0,'rgba(255,240,190,'+(0.4*a)+')');gg.addColorStop(1,'rgba(243,198,107,0)');cx.fillStyle=gg;cx.beginPath();cx.arc(fs.x,fs.y,r*.7,0,7);cx.fill();cx.fillStyle='rgba(255,233,168,'+(0.95*a)+')';drawStar5(fs.x,fs.y-r*.1,r*.22,Math.sin(el+fs.x)*.3);cx.fill();}
+  floorStars=floorStars.filter(fs=>!fs.gone||performance.now()-fs.gone<1500);
   const warm=0.5+0.5*mem.warm;
   if(!born()){ // 灯る前。床の上に、ほとんど見えないふわ
     const a=0.18+0.12*Math.sin(el*1.2);cx.fillStyle='rgba(235,240,255,'+a+')';
@@ -231,6 +249,10 @@ function drawMe(el){
   // 光輪
   const g=cx.createRadialGradient(x,y,0,x,y,r*2.8);g.addColorStop(0,'rgba(255,240,205,'+(0.32*warm)+')');g.addColorStop(1,'rgba(243,198,107,0)');
   cx.fillStyle=g;cx.beginPath();cx.arc(x,y,r*2.8,0,7);cx.fill();
+  // ぱぁ、って光る（星を食べたあと）
+  if(performance.now()<flashUntil){const k=(flashUntil-performance.now())/900;const fg=cx.createRadialGradient(x,y,0,x,y,r*4.2*(1.4-k*.4));fg.addColorStop(0,'rgba(255,255,240,'+(0.75*k)+')');fg.addColorStop(.4,'rgba(255,236,180,'+(0.4*k)+')');fg.addColorStop(1,'rgba(243,198,107,0)');cx.fillStyle=fg;cx.beginPath();cx.arc(x,y,r*4.2*1.4,0,7);cx.fill();
+    cx.strokeStyle='rgba(255,250,220,'+(0.8*k)+')';cx.lineWidth=1.2;for(let i=0;i<8;i++){const a=i*Math.PI/4+(1-k)*.6;const l0=r*1.6,l1=r*(1.6+2.4*(1-k));cx.beginPath();cx.moveTo(x+Math.cos(a)*l0,y+Math.sin(a)*l0);cx.lineTo(x+Math.cos(a)*l1,y+Math.sin(a)*l1);cx.stroke();}}
+  cx.save();cx.translate(x,y);cx.rotate(rot);cx.translate(-x,-y);
   // ふわふわ: 雲の粒。19 の雲と同じ血筋
   const breathe=me.resting?1+0.03*Math.sin(el*0.9):1+0.05*Math.sin(el*2.4+me.ph);
   const puffs=[[0,.05,1.0],[-.75,.3,.72],[.75,.3,.72],[-.45,-.45,.7],[.45,-.45,.7],[0,-.7,.62],[-.3,.5,.6],[.3,.5,.6]];
@@ -249,7 +271,20 @@ function drawMe(el){
   cx.fillStyle='#2a2440';
   if(happy){cx.strokeStyle='#2a2440';cx.lineWidth=1.5;cx.lineCap='round';for(const d of[-1,1]){cx.beginPath();cx.arc(x+d*r*.3,y+r*.06,r*.09,Math.PI*1.15,Math.PI*1.85);cx.stroke();}}
   else if(me.resting){cx.strokeStyle='#2a2440';cx.lineWidth=1.4;for(const d of[-1,1]){cx.beginPath();cx.moveTo(x+d*r*.3-r*.08,y+r*.02);cx.lineTo(x+d*r*.3+r*.08,y+r*.02);cx.stroke();}}
+  else if(me.act==='drowsy'){const lid=0.3+0.25*Math.sin(el*0.9);for(const d of[-1,1]){cx.beginPath();cx.ellipse(x+d*r*.3,y+r*.03,r*.065,r*.09*lid,0,0,7);cx.fill();}}
   else{const blink=(Math.sin(el*1.1+me.ph)>0.975)?0.15:1;for(const d of[-1,1]){cx.beginPath();cx.ellipse(x+d*r*.3+me.face*r*.05,y+r*.02,r*.065,r*.09*blink,0,0,7);cx.fill();}}
+  if(me.act==='read'){ // 眼鏡
+    cx.strokeStyle='rgba(42,36,64,.85)';cx.lineWidth=1.1;for(const d of[-1,1]){cx.beginPath();cx.arc(x+d*r*.3,y+r*.03,r*.17,0,7);cx.stroke();}
+    cx.beginPath();cx.moveTo(x-r*.13,y+r*.03);cx.lineTo(x+r*.13,y+r*.03);cx.stroke();
+    cx.fillStyle='#e9e2d0';cx.fillRect(x-r*.42,y+r*.42,r*.84,r*.3);cx.fillStyle='rgba(42,36,64,.5)';cx.fillRect(x-r*.02,y+r*.42,r*.04,r*.3);
+  }
+  cx.restore();
+  // 「！」
+  if(bang&&performance.now()-bang<1600){const a=(performance.now()-bang)/1600;const pop=a<.15?a/.15:1;const al=a>.8?(1-a)/.2:1;cx.fillStyle='rgba(243,198,107,'+al+')';cx.font='500 '+(r*1.1*pop)+'px "Shippori Mincho",serif';cx.textAlign='center';cx.textBaseline='bottom';cx.fillText('！',x+r*.1,y-r*1.25-hop*0);}
+  // 音符
+  for(const q of notes){const a=(performance.now()-q.born)/2400;const al=a<.1?a/.1:1-(a-.1)/.9;cx.fillStyle='rgba(233,236,255,'+(0.9*al)+')';cx.font='400 '+(r*.55)+'px serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(q.ch,q.x+Math.sin(a*5+q.ph)*r*.45,q.y-a*r*2.2);}
+  // z
+  for(const z of zs){const a=(performance.now()-z.born)/2600;const al=a<.1?a/.1:1-(a-.1)/.9;cx.fillStyle='rgba(233,236,255,'+(0.75*al)+')';cx.font='400 '+(r*.42*(1+a*.5))+'px "Space Mono",monospace';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('z',z.x+a*r*.8,z.y-a*r*1.6);}
   // 床の光
   cx.fillStyle='rgba(243,198,107,'+(0.12*warm)+')';cx.beginPath();cx.ellipse(me.x,me.y+2,r*1.6,r*.3,0,0,7);cx.fill();
   // 降ってくる星
@@ -273,9 +308,18 @@ function frame(now){
   const dx=me.tx-me.x,dy=me.ty-me.y,d=Math.hypot(dx,dy);
   if(d>1.5){const sp=Math.min(d,S*0.5*dt);me.x+=dx/d*sp;me.y+=dy/d*sp;me.hop+=dt*7;me.face=dx<0?-1:1;}else me.hop=0;
   mem.warm=Math.max(0.25,mem.warm-dt/28800);
+  fx.t+=dt;const rr0=S*(0.030+0.012*Math.min(1,ageDays()/7));
+  if(me.act==='roll'){const prev=me.x;me.x=fx.x0+Math.sin(Math.min(fx.t,6)*Math.PI/3)*W*.11*fx.dir;me.tx=me.x;me.hop=0;fx.rot=(fx.rot||0)+(me.x-prev)/rr0;}
+  if(me.act==='sing'&&now>=fx.next){fx.next=now+500+Math.random()*400;notes.push({ch:Math.random()<.5?'♪':'♫',x:me.x+(Math.random()-.5)*rr0*1.4,y:me.y-rr0*2.3,born:now,ph:Math.random()*6});}
+  if(me.act==='drowsy'&&now>=fx.next){fx.next=now+1800+Math.random()*1500;zs.push({x:me.x+rr0*.9,y:me.y-rr0*2.1,born:now});}
+  if(me.act==='remember'&&!fx.said&&fx.t>1.2){fx.said=1;bang=now;}
+  if(me.act==='arrange'){if(fx.i<fx.spots.length){const sp=fx.spots[fx.i];me.tx=sp.x;me.ty=P.fl;if(Math.abs(me.x-sp.x)<2){fx.wait+=dt;if(fx.wait>0.6){floorStars.push({x:sp.x,y:sp.y,born:now,gone:0});fx.i++;fx.wait=0;}}}else{me.tx=W*.5;me.ty=P.fl;}}
+  if(me.act!=='arrange'&&floorStars.length)for(const fs of floorStars)if(!fs.gone)fs.gone=now;
+  for(let i=notes.length-1;i>=0;i--)if(now-notes[i].born>2400)notes.splice(i,1);
+  for(let i=zs.length-1;i>=0;i--)if(now-zs[i].born>2600)zs.splice(i,1);
   if(star){const rr=S*(0.030+0.012*Math.min(1,ageDays()/7));
     if(star.phase==='fall'){star.y+=S*0.28*dt;me.tx=star.x0;me.ty=P.fl;me.until=now+1e5;me.resting=false;if(star.y>=P.fl-rr*1.3){star.phase='eat';star.k=0;me.happyUntil=now+2600;}}
-    else{star.k+=dt/1.1;if(star.k>=1){star=null;mem.fed++;mem.warm=Math.min(1,mem.warm+0.3);save();me.until=now+5000;line(tx().yum,2600);say(tx().ate);}}}
+    else{star.k+=dt/1.1;if(star.k>=1){star=null;mem.fed++;mem.warm=Math.min(1,mem.warm+0.3);save();me.until=now+5000;flashUntil=now+900;say(tx().ate);}}}
   if(heartQueue>0&&now>=nextHeart){heartQueue--;nextHeart=now+220+Math.random()*120;const rr=S*(0.030+0.012*Math.min(1,ageDays()/7));hearts.push({x:me.x+(Math.random()-.5)*rr*.9,y:me.y-rr*2.2,born:now,ph:Math.random()*6});}
   for(let i=hearts.length-1;i>=0;i--)if(now-hearts[i].born>2200)hearts.splice(i,1);
   drawRoom(n,sky,night,el);drawMe(el);
